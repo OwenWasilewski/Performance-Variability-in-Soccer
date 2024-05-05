@@ -1,0 +1,1397 @@
+---
+title: "LaLiga"
+author: "Owen Wasilewski"
+date: "2024-03-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+ligaraw <- read.csv("LaLiga18_23.csv", header = T, sep = ",")
+LaLiga <- ligaraw[,-1]
+```
+
+```{r}
+HG <- LaLiga$HG
+AG <- LaLiga$AG
+
+LaLiga$THP <-ifelse(HG > AG, 3, ifelse(HG==AG, 1, 0))
+LaLiga$TAP <-ifelse(AG > HG, 3, ifelse(HG==AG, 1, 0))
+```
+
+# Projected Points
+```{r}
+for(i in 1:2280){
+  UHWP <- (1/LaLiga$AvgH)
+  UDP <- (1/LaLiga$AvgD)
+  UAWP <- (1/LaLiga$AvgA)
+  LaLiga$HWP <- (UHWP/(UHWP+UDP+UAWP))
+  LaLiga$DP <- (UDP/(UHWP+UDP+UAWP))
+  LaLiga$AWP <- (UAWP/(UHWP+UDP+UAWP))
+}
+
+for(i in 1:2280){
+LaLiga$PHPoints <- LaLiga$HWP*3+LaLiga$DP*1
+LaLiga$PAPoints <- LaLiga$AWP*3+LaLiga$DP*1
+}
+LaLiga$PHPoints <- round(LaLiga$PHPoints, 3)
+LaLiga$PAPoints <- round(LaLiga$PAPoints, 3)
+```
+
+# Expected Points
+```{r}
+XGProbability <- matrix(0, nrow = length(LaLiga$Season), ncol = 3)
+colnames(XGProbability) <- c("XGHWP", "XGDP", "XGAWP")
+x <- LaLiga$HXG
+y <- LaLiga$AXG
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        XGProbability[,1]<-XGProbability[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         XGProbability[,2]<-XGProbability[,2]+scoreProbability
+       } else {
+         XGProbability[,3]<-XGProbability[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga <- cbind(LaLiga, XGProbability)
+
+LaLiga$XGHPoints <- LaLiga$XGHWP*3+LaLiga$XGDP*1
+LaLiga$XGAPoints <- LaLiga$XGAWP*3+LaLiga$XGDP*1
+
+LaLiga$XGHPoints <- round(LaLiga$XGHPoints, 3)
+LaLiga$XGAPoints <- round(LaLiga$XGAPoints, 3)
+
+```
+
+```{r}
+LaLiga18 <- subset(LaLiga, Season == "2018")
+LaLiga19 <- subset(LaLiga, Season == "2019")
+LaLiga20 <- subset(LaLiga, Season == "2020")
+LaLiga21 <- subset(LaLiga, Season == "2021")
+LaLiga22 <- subset(LaLiga, Season == "2022")
+LaLiga23 <- subset(LaLiga, Season == "2023")
+```
+
+#Poisson Regression 18
+```{r}
+modelLaLiga18 <- rbind(data.frame(team=LaLiga18$Home, opponent=LaLiga18$Away, home=1, goals=LaLiga18$HG),
+  data.frame(team=LaLiga18$Away, opponent=LaLiga18$Home, home=0, goals=LaLiga18$AG))
+#View(modelLaLiga18)
+pois_LaLiga18 <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga18)
+```
+
+```{r}
+homet18 <- subset(modelLaLiga18, home == 1)
+awayt18 <- subset(modelLaLiga18, home == 0)
+pois_prob18 <- matrix(0, nrow = length(homet18$team), ncol = 3)
+colnames(pois_prob18) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga18, data.frame(team = homet18[1], opponent = homet18[2], home = 1), type="response")
+y <- predict(pois_LaLiga18, data.frame(team = awayt18[1], opponent = awayt18[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob18[,1]<-pois_prob18[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob18[,2]<-pois_prob18[,2]+scoreProbability
+       } else {
+         pois_prob18[,3]<-pois_prob18[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga18 <- cbind(LaLiga18, pois_prob18)
+
+LaLiga18$PRHPoints <- LaLiga18$PoisHWP*3+LaLiga18$PoisDP*1
+LaLiga18$PRAPoints <- LaLiga18$PoisAWP*3+LaLiga18$PoisDP*1
+
+LaLiga18$PRHPoints <- round(LaLiga18$PRHPoints, 3)
+LaLiga18$PRAPoints <- round(LaLiga18$PRAPoints, 3)
+```
+
+#Poisson Regression 19
+```{r}
+modelLaLiga19 <- rbind(data.frame(team=LaLiga19$Home, opponent=LaLiga19$Away, home=1, goals=LaLiga19$HG),
+  data.frame(team=LaLiga19$Away, opponent=LaLiga19$Home, home=0, goals=LaLiga19$AG))
+#View(modelLaLiga19)
+pois_LaLiga19 <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga19)
+```
+
+```{r}
+homet19 <- subset(modelLaLiga19, home == 1)
+awayt19 <- subset(modelLaLiga19, home == 0)
+pois_prob19 <- matrix(0, nrow = length(homet19$team), ncol = 3)
+colnames(pois_prob19) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga19, data.frame(team = homet19[1], opponent = homet19[2], home = 1), type="response")
+y <- predict(pois_LaLiga19, data.frame(team = awayt19[1], opponent = awayt19[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob19[,1]<-pois_prob19[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob19[,2]<-pois_prob19[,2]+scoreProbability
+       } else {
+         pois_prob19[,3]<-pois_prob19[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga19 <- cbind(LaLiga19, pois_prob19)
+
+LaLiga19$PRHPoints <- LaLiga19$PoisHWP*3+LaLiga19$PoisDP*1
+LaLiga19$PRAPoints <- LaLiga19$PoisAWP*3+LaLiga19$PoisDP*1
+
+LaLiga19$PRHPoints <- round(LaLiga19$PRHPoints, 3)
+LaLiga19$PRAPoints <- round(LaLiga19$PRAPoints, 3)
+```
+
+#Poisson Regression 20
+```{r}
+modelLaLiga20 <- rbind(data.frame(team=LaLiga20$Home, opponent=LaLiga20$Away, home=1, goals=LaLiga20$HG),
+  data.frame(team=LaLiga20$Away, opponent=LaLiga20$Home, home=0, goals=LaLiga20$AG))
+#View(modelLaLiga20)
+pois_LaLiga20 <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga20)
+```
+
+```{r}
+homet20 <- subset(modelLaLiga20, home == 1)
+awayt20 <- subset(modelLaLiga20, home == 0)
+pois_prob20 <- matrix(0, nrow = length(homet20$team), ncol = 3)
+colnames(pois_prob20) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga20, data.frame(team = homet20[1], opponent = homet20[2], home = 1), type="response")
+y <- predict(pois_LaLiga20, data.frame(team = awayt20[1], opponent = awayt20[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob20[,1]<-pois_prob20[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob20[,2]<-pois_prob20[,2]+scoreProbability
+       } else {
+         pois_prob20[,3]<-pois_prob20[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga20 <- cbind(LaLiga20, pois_prob20)
+
+LaLiga20$PRHPoints <- LaLiga20$PoisHWP*3+LaLiga20$PoisDP*1
+LaLiga20$PRAPoints <- LaLiga20$PoisAWP*3+LaLiga20$PoisDP*1
+
+LaLiga20$PRHPoints <- round(LaLiga20$PRHPoints, 3)
+LaLiga20$PRAPoints <- round(LaLiga20$PRAPoints, 3)
+```
+
+#Poisson Regression 21
+```{r}
+modelLaLiga21 <- rbind(data.frame(team=LaLiga21$Home, opponent=LaLiga21$Away, home=1, goals=LaLiga21$HG),
+  data.frame(team=LaLiga21$Away, opponent=LaLiga21$Home, home=0, goals=LaLiga21$AG))
+#View(modelLaLiga21)
+pois_LaLiga21 <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga21)
+```
+
+```{r}
+homet21 <- subset(modelLaLiga21, home == 1)
+awayt21 <- subset(modelLaLiga21, home == 0)
+pois_prob21 <- matrix(0, nrow = length(homet21$team), ncol = 3)
+colnames(pois_prob21) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga21, data.frame(team = homet21[1], opponent = homet21[2], home = 1), type="response")
+y <- predict(pois_LaLiga21, data.frame(team = awayt21[1], opponent = awayt21[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob21[,1]<-pois_prob21[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob21[,2]<-pois_prob21[,2]+scoreProbability
+       } else {
+         pois_prob21[,3]<-pois_prob21[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga21 <- cbind(LaLiga21, pois_prob21)
+
+LaLiga21$PRHPoints <- LaLiga21$PoisHWP*3+LaLiga21$PoisDP*1
+LaLiga21$PRAPoints <- LaLiga21$PoisAWP*3+LaLiga21$PoisDP*1
+
+LaLiga21$PRHPoints <- round(LaLiga21$PRHPoints, 3)
+LaLiga21$PRAPoints <- round(LaLiga21$PRAPoints, 3)
+```
+
+#Poisson Regression 22
+```{r}
+modelLaLiga22 <- rbind(data.frame(team=LaLiga22$Home, opponent=LaLiga22$Away, home=1, goals=LaLiga22$HG),
+  data.frame(team=LaLiga22$Away, opponent=LaLiga22$Home, home=0, goals=LaLiga22$AG))
+#View(modelLaLiga22)
+pois_LaLiga22 <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga22)
+```
+
+```{r}
+homet22 <- subset(modelLaLiga22, home == 1)
+awayt22 <- subset(modelLaLiga22, home == 0)
+pois_prob22 <- matrix(0, nrow = length(homet22$team), ncol = 3)
+colnames(pois_prob22) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga22, data.frame(team = homet22[1], opponent = homet22[2], home = 1), type="response")
+y <- predict(pois_LaLiga22, data.frame(team = awayt22[1], opponent = awayt22[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob22[,1]<-pois_prob22[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob22[,2]<-pois_prob22[,2]+scoreProbability
+       } else {
+         pois_prob22[,3]<-pois_prob22[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga22 <- cbind(LaLiga22, pois_prob22)
+
+LaLiga22$PRHPoints <- LaLiga22$PoisHWP*3+LaLiga22$PoisDP*1
+LaLiga22$PRAPoints <- LaLiga22$PoisAWP*3+LaLiga22$PoisDP*1
+
+LaLiga22$PRHPoints <- round(LaLiga22$PRHPoints, 3)
+LaLiga22$PRAPoints <- round(LaLiga22$PRAPoints, 3)
+```
+
+#Poisson Regression 23
+```{r}
+modelLaLiga23 <- rbind(data.frame(team=LaLiga23$Home, opponent=LaLiga23$Away, home=1, goals=LaLiga23$HG),
+  data.frame(team=LaLiga23$Away, opponent=LaLiga23$Home, home=0, goals=LaLiga23$AG))
+#View(modelLaLiga23)
+pois_LaLiga23 <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga23)
+```
+
+```{r}
+homet23 <- subset(modelLaLiga23, home == 1)
+awayt23 <- subset(modelLaLiga23, home == 0)
+pois_prob23 <- matrix(0, nrow = length(homet23$team), ncol = 3)
+colnames(pois_prob23) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga23, data.frame(team = homet23[1], opponent = homet23[2], home = 1), type="response")
+y <- predict(pois_LaLiga23, data.frame(team = awayt23[1], opponent = awayt23[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob23[,1]<-pois_prob23[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob23[,2]<-pois_prob23[,2]+scoreProbability
+       } else {
+         pois_prob23[,3]<-pois_prob23[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga23 <- cbind(LaLiga23, pois_prob23)
+
+LaLiga23$PRHPoints <- LaLiga23$PoisHWP*3+LaLiga23$PoisDP*1
+LaLiga23$PRAPoints <- LaLiga23$PoisAWP*3+LaLiga23$PoisDP*1
+
+LaLiga23$PRHPoints <- round(LaLiga23$PRHPoints, 3)
+LaLiga23$PRAPoints <- round(LaLiga23$PRAPoints, 3)
+```
+
+#Table making 
+```{r}
+library(dplyr)
+Truepoints <- function(season){
+THPts <- season %>% 
+  group_by(Home) %>% 
+  summarize(THPts = sum(THP))
+TAPts <- season %>% 
+  group_by(Away) %>% 
+ summarize(TAPts = sum(TAP))
+TPts <- cbind(THPts,TAPts[,-1])
+TPts$ppts <- TPts$THPts+TPts$TAPts
+TPts <- TPts[,-c(2,3)]
+}
+XGpoints <- function(season){
+xGHPts <- season %>% 
+  group_by(Home) %>% 
+  summarize(xGHPts = sum(XGHPoints))
+xGAPts <- season %>% 
+  group_by(Away) %>% 
+ summarize(xGAPts = sum(XGAPoints))
+xGPts <- cbind(xGHPts,xGAPts[,-1])
+xGPts$xpts <- xGPts$xGHPts+xGPts$xGAPts
+xGPts <- xGPts[,-c(2,3)]
+}
+Projpoints <- function(season){
+PHPts <- season %>% 
+  group_by(Home) %>% 
+  summarize(PHPts = sum(PHPoints))
+PAPts <- season %>% 
+  group_by(Away) %>% 
+ summarize(PAPts = sum(PAPoints))
+PPts <- cbind(PHPts,PAPts[,-1])
+PPts$ppts <- PPts$PHPts+PPts$PAPts
+PPts <- PPts[,-c(2,3)]
+}
+Poispoints <- function(season){
+PRHPts <- season %>% 
+  group_by(Home) %>% 
+  summarize(PRHPts = sum(PRHPoints))
+PRAPts <- season %>% 
+  group_by(Away) %>% 
+ summarize(PRAPts = sum(PRAPoints))
+PRPts <- cbind(PRHPts,PRAPts[,-1])
+PRPts$ppts <- PRPts$PRHPts+PRPts$PRAPts
+PRPts <- PRPts[,-c(2,3)]
+}
+```
+
+#Season 2018
+```{r}
+TPts18 <- Truepoints(LaLiga18)
+xGPts18 <- XGpoints(LaLiga18)[,-1]
+PPts18 <- Projpoints(LaLiga18)[,-1]
+PRPts18 <- Poispoints(LaLiga18)[,-1]
+LaLigaTable18 <- data.frame(TPts18, xGPts18, PPts18, PRPts18)
+colnames(LaLigaTable18) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable18 <-LaLigaTable18[order(-LaLigaTable18$Points),]
+
+XGDif18 <- abs(LaLigaTable18$Points-LaLigaTable18$XGPoints)
+ProjDif18 <- abs(LaLigaTable18$Points-LaLigaTable18$ProjPoints)
+PoisDif18 <- abs(LaLigaTable18$Points-LaLigaTable18$PoisPoints)
+LLXG18 <- sum(XGDif18)/20
+LLPJ18 <- sum(ProjDif18)/20
+LLPS18 <- sum(PoisDif18)/20
+LLXG18
+LLPJ18
+LLPS18
+LL18 <- (LLXG18 + LLPJ18 + LLPS18)/3
+LL18
+```
+
+#Season 2019
+```{r}
+TPts19 <- Truepoints(LaLiga19)
+xGPts19 <- XGpoints(LaLiga19)[,-1]
+PPts19 <- Projpoints(LaLiga19)[,-1]
+PRPts19 <- Poispoints(LaLiga19)[,-1]
+LaLigaTable19 <- data.frame(TPts19, xGPts19, PPts19, PRPts19)
+colnames(LaLigaTable19) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable19 <-LaLigaTable19[order(-LaLigaTable19$Points),]
+
+XGDif19 <- abs(LaLigaTable19$Points-LaLigaTable19$XGPoints)
+ProjDif19 <- abs(LaLigaTable19$Points-LaLigaTable19$ProjPoints)
+PoisDif19 <- abs(LaLigaTable19$Points-LaLigaTable19$PoisPoints)
+LLXG19 <- sum(XGDif19)/20
+LLPJ19 <- sum(ProjDif19)/20
+LLPS19 <- sum(PoisDif19)/20
+LLXG19
+LLPJ19
+LLPS19
+LL19 <- (LLXG19 + LLPJ19 + LLPS19)/3
+LL19
+```
+
+#Season 2020
+```{r}
+TPts20 <- Truepoints(LaLiga20)
+xGPts20 <- XGpoints(LaLiga20)[,-1]
+PPts20 <- Projpoints(LaLiga20)[,-1]
+PRPts20 <- Poispoints(LaLiga20)[,-1]
+LaLigaTable20 <- data.frame(TPts20, xGPts20, PPts20, PRPts20)
+colnames(LaLigaTable20) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable20 <-LaLigaTable20[order(-LaLigaTable20$Points),]
+
+XGDif20 <- abs(LaLigaTable20$Points-LaLigaTable20$XGPoints)
+ProjDif20 <- abs(LaLigaTable20$Points-LaLigaTable20$ProjPoints)
+PoisDif20 <- abs(LaLigaTable20$Points-LaLigaTable20$PoisPoints)
+LLXG20 <- sum(XGDif20)/20
+LLPJ20 <- sum(ProjDif20)/20
+LLPS20 <- sum(PoisDif20)/20
+LLXG20
+LLPJ20
+LLPS20
+LL20 <- (LLXG20 + LLPJ20 + LLPS20)/3
+LL20
+```
+
+#Season 2021
+```{r}
+TPts21 <- Truepoints(LaLiga21)
+xGPts21 <- XGpoints(LaLiga21)[,-1]
+PPts21 <- Projpoints(LaLiga21)[,-1]
+PRPts21 <- Poispoints(LaLiga21)[,-1]
+LaLigaTable21 <- data.frame(TPts21, xGPts21, PPts21, PRPts21)
+colnames(LaLigaTable21) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable21 <-LaLigaTable21[order(-LaLigaTable21$Points),]
+
+XGDif21 <- abs(LaLigaTable21$Points-LaLigaTable21$XGPoints)
+ProjDif21 <- abs(LaLigaTable21$Points-LaLigaTable21$ProjPoints)
+PoisDif21 <- abs(LaLigaTable21$Points-LaLigaTable21$PoisPoints)
+LLXG21 <- sum(XGDif21)/20
+LLPJ21 <- sum(ProjDif21)/20
+LLPS21 <- sum(PoisDif21)/20
+LLXG21
+LLPJ21
+LLPS21
+LL21 <- (LLXG21 + LLPJ21 + LLPS21)/3
+LL21
+```
+
+#Season 2022
+```{r}
+TPts22 <- Truepoints(LaLiga22)
+xGPts22 <- XGpoints(LaLiga22)[,-1]
+PPts22 <- Projpoints(LaLiga22)[,-1]
+PRPts22 <- Poispoints(LaLiga22)[,-1]
+LaLigaTable22 <- data.frame(TPts22, xGPts22, PPts22, PRPts22)
+colnames(LaLigaTable22) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable22 <-LaLigaTable22[order(-LaLigaTable22$Points),]
+
+XGDif22 <- abs(LaLigaTable22$Points-LaLigaTable22$XGPoints)
+ProjDif22 <- abs(LaLigaTable22$Points-LaLigaTable22$ProjPoints)
+PoisDif22 <- abs(LaLigaTable22$Points-LaLigaTable22$PoisPoints)
+LLXG22 <- sum(XGDif22)/20
+LLPJ22 <- sum(ProjDif22)/20
+LLPS22 <- sum(PoisDif22)/20
+LLXG22
+LLPJ22
+LLPS22
+LL22 <- (LLXG22 + LLPJ22 + LLPS22)/3
+LL22
+```
+
+#Season 2023
+```{r}
+TPts23 <- Truepoints(LaLiga23)
+xGPts23 <- XGpoints(LaLiga23)[,-1]
+PPts23 <- Projpoints(LaLiga23)[,-1]
+PRPts23 <- Poispoints(LaLiga23)[,-1]
+LaLigaTable23 <- data.frame(TPts23, xGPts23, PPts23, PRPts23)
+colnames(LaLigaTable23) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable23 <-LaLigaTable23[order(-LaLigaTable23$Points),]
+
+XGDif23 <- abs(LaLigaTable23$Points-LaLigaTable23$XGPoints)
+ProjDif23 <- abs(LaLigaTable23$Points-LaLigaTable23$ProjPoints)
+PoisDif23 <- abs(LaLigaTable23$Points-LaLigaTable23$PoisPoints)
+LLXG23 <- sum(XGDif23)/20
+LLPJ23 <- sum(ProjDif23)/20
+LLPS23 <- sum(PoisDif23)/20
+LLXG23
+LLPJ23
+LLPS23
+LL23 <- (LLXG23 + LLPJ23 + LLPS23)/3
+LL23
+```
+#Final Totals Laliga
+```{r}
+LLXGscore <- (LLXG18 + LLXG19 + LLXG20 + LLXG21 + LLXG22 + LLXG23)/6
+LLXGscore
+LLPJscore <- (LLPJ18 + LLPJ19 + LLPJ20 + LLPJ21 + LLPJ22 + LLPJ23)/6
+LLPJscore
+LLPSscore <- (LLPS18 + LLPS19 + LLPS20 + LLPS21 + LLPS22 + LLPS23)/6
+LLPSscore
+LLscore <- (LL18 + LL19 + LL20 + LL21 + LL22 + LL23)/6
+LLscore
+
+#minus 20 + 21
+LLXGscore2 <- (LLXG18 + LLXG19 + LLXG22 + LLXG23)/4
+LLXGscore2
+LLPJscore2 <- (LLPJ18 + LLPJ19 + LLPJ22 + LLPJ23)/4
+LLPJscore2
+LLPSscore2 <- (LLPS18 + LLPS19 + LLPS22 + LLPS23)/4
+LLPSscore2
+LLscore2 <- (LL18 + LL19 + LL22 + LL23)/4
+LLscore2
+```
+
+```{r}
+LaLiga18 <- subset(LaLiga, Season == "2018")
+LaLiga19 <- subset(LaLiga, Season == "2019")
+LaLiga20 <- subset(LaLiga, Season == "2020")
+LaLiga21 <- subset(LaLiga, Season == "2021")
+LaLiga22 <- subset(LaLiga, Season == "2022")
+LaLiga23 <- subset(LaLiga, Season == "2023")
+```
+# Removing relegated teams 
+# 2018
+```{r}
+library(dplyr)
+LaLiga18R <- filter(LaLiga18, !(Home %in% c("Malaga", "Las Palmas", "La Coruna")),
+                    !(Away %in% c("Malaga", "Las Palmas", "La Coruna")))
+```
+
+#Poisson Regression 18R
+```{r}
+modelLaLiga18R <- rbind(data.frame(team=LaLiga18R$Home, opponent=LaLiga18R$Away, home=1, goals=LaLiga18R$HG),
+  data.frame(team=LaLiga18R$Away, opponent=LaLiga18R$Home, home=0, goals=LaLiga18R$AG))
+#View(modelLaLiga18R)
+pois_LaLiga18R <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga18R)
+```
+
+```{r}
+homet18 <- subset(modelLaLiga18R, home == 1)
+awayt18 <- subset(modelLaLiga18R, home == 0)
+pois_prob18 <- matrix(0, nrow = length(homet18$team), ncol = 3)
+colnames(pois_prob18) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga18R, data.frame(team = homet18[1], opponent = homet18[2], home = 1), type="response")
+y <- predict(pois_LaLiga18R, data.frame(team = awayt18[1], opponent = awayt18[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob18[,1]<-pois_prob18[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob18[,2]<-pois_prob18[,2]+scoreProbability
+       } else {
+         pois_prob18[,3]<-pois_prob18[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga18R <- cbind(LaLiga18R, pois_prob18)
+
+LaLiga18R$PRHPoints <- LaLiga18R$PoisHWP*3+LaLiga18R$PoisDP*1
+LaLiga18R$PRAPoints <- LaLiga18R$PoisAWP*3+LaLiga18R$PoisDP*1
+
+LaLiga18R$PRHPoints <- round(LaLiga18R$PRHPoints, 3)
+LaLiga18R$PRAPoints <- round(LaLiga18R$PRAPoints, 3)
+```
+
+```{r}
+TPts18R <- Truepoints(LaLiga18R)
+xGPts18R <- XGpoints(LaLiga18R)[,-1]
+PPts18R <- Projpoints(LaLiga18R)[,-1]
+PRPts18R <- Poispoints(LaLiga18R)[,-1]
+LaLigaTable18R <- data.frame(TPts18R, xGPts18R, PPts18R, PRPts18R)
+colnames(LaLigaTable18R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable18R <-LaLigaTable18R[order(-LaLigaTable18R$Points),]
+
+XGDif18R <- abs(LaLigaTable18R$Points-LaLigaTable18R$XGPoints)
+ProjDif18R <- abs(LaLigaTable18R$Points-LaLigaTable18R$ProjPoints)
+PoisDif18R <- abs(LaLigaTable18R$Points-LaLigaTable18R$PoisPoints)
+LLXG18R <- sum(XGDif18R)*(38/32)/17
+LLPJ18R <- sum(ProjDif18R)*(38/32)/17
+LLPS18R <- sum(PoisDif18R)*(38/32)/17
+LLXG18R
+LLPJ18R
+LLPS18R
+LL18R <- (LLXG18R + LLPJ18R + LLPS18R)/3
+LL18R
+```
+# 2019
+```{r}
+library(dplyr)
+LaLiga19R <- filter(LaLiga19, !(Home %in% c("Girona", "Huesca", "Vallecano")),
+                    !(Away %in% c("Girona", "Huesca", "Vallecano")))
+```
+
+#Poisson Regression 19R
+```{r}
+modelLaLiga19R <- rbind(data.frame(team=LaLiga19R$Home, opponent=LaLiga19R$Away, home=1, goals=LaLiga19R$HG),
+  data.frame(team=LaLiga19R$Away, opponent=LaLiga19R$Home, home=0, goals=LaLiga19R$AG))
+#View(modelLaLiga19R)
+pois_LaLiga19R <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga19R)
+```
+
+```{r}
+homet19 <- subset(modelLaLiga19R, home == 1)
+awayt19 <- subset(modelLaLiga19R, home == 0)
+pois_prob19 <- matrix(0, nrow = length(homet19$team), ncol = 3)
+colnames(pois_prob19) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga19R, data.frame(team = homet19[1], opponent = homet19[2], home = 1), type="response")
+y <- predict(pois_LaLiga19R, data.frame(team = awayt19[1], opponent = awayt19[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob19[,1]<-pois_prob19[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob19[,2]<-pois_prob19[,2]+scoreProbability
+       } else {
+         pois_prob19[,3]<-pois_prob19[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga19R <- cbind(LaLiga19R, pois_prob19)
+
+LaLiga19R$PRHPoints <- LaLiga19R$PoisHWP*3+LaLiga19R$PoisDP*1
+LaLiga19R$PRAPoints <- LaLiga19R$PoisAWP*3+LaLiga19R$PoisDP*1
+
+LaLiga19R$PRHPoints <- round(LaLiga19R$PRHPoints, 3)
+LaLiga19R$PRAPoints <- round(LaLiga19R$PRAPoints, 3)
+```
+
+```{r}
+TPts19R <- Truepoints(LaLiga19R)
+xGPts19R <- XGpoints(LaLiga19R)[,-1]
+PPts19R <- Projpoints(LaLiga19R)[,-1]
+PRPts19R <- Poispoints(LaLiga19R)[,-1]
+LaLigaTable19R <- data.frame(TPts19R, xGPts19R, PPts19R, PRPts19R)
+colnames(LaLigaTable19R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable19R <-LaLigaTable19R[order(-LaLigaTable19R$Points),]
+
+XGDif19R <- abs(LaLigaTable19R$Points-LaLigaTable19R$XGPoints)
+ProjDif19R <- abs(LaLigaTable19R$Points-LaLigaTable19R$ProjPoints)
+PoisDif19R <- abs(LaLigaTable19R$Points-LaLigaTable19R$PoisPoints)
+LLXG19R <- sum(XGDif19R)*(38/32)/17
+LLPJ19R <- sum(ProjDif19R)*(38/32)/17
+LLPS19R <- sum(PoisDif19R)*(38/32)/17
+LLXG19R
+LLPJ19R
+LLPS19R
+LL19R <- (LLXG19R + LLPJ19R + LLPS19R)/3
+LL19R
+```
+
+# 2020
+```{r}
+library(dplyr)
+LaLiga20R <- filter(LaLiga20, !(Home %in% c("Leganes", "Mallorca", "Espanol")),
+                    !(Away %in% c("Leganes", "Mallorca", "Espanol")))
+```
+
+#Poisson Regression 20R
+```{r}
+modelLaLiga20R <- rbind(data.frame(team=LaLiga20R$Home, opponent=LaLiga20R$Away, home=1, goals=LaLiga20R$HG),
+  data.frame(team=LaLiga20R$Away, opponent=LaLiga20R$Home, home=0, goals=LaLiga20R$AG))
+#View(modelLaLiga20R)
+pois_LaLiga20R <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga20R)
+```
+
+```{r}
+homet20 <- subset(modelLaLiga20R, home == 1)
+awayt20 <- subset(modelLaLiga20R, home == 0)
+pois_prob20 <- matrix(0, nrow = length(homet20$team), ncol = 3)
+colnames(pois_prob20) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga20R, data.frame(team = homet20[1], opponent = homet20[2], home = 1), type="response")
+y <- predict(pois_LaLiga20R, data.frame(team = awayt20[1], opponent = awayt20[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob20[,1]<-pois_prob20[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob20[,2]<-pois_prob20[,2]+scoreProbability
+       } else {
+         pois_prob20[,3]<-pois_prob20[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga20R <- cbind(LaLiga20R, pois_prob20)
+
+LaLiga20R$PRHPoints <- LaLiga20R$PoisHWP*3+LaLiga20R$PoisDP*1
+LaLiga20R$PRAPoints <- LaLiga20R$PoisAWP*3+LaLiga20R$PoisDP*1
+
+LaLiga20R$PRHPoints <- round(LaLiga20R$PRHPoints, 3)
+LaLiga20R$PRAPoints <- round(LaLiga20R$PRAPoints, 3)
+```
+
+```{r}
+TPts20R <- Truepoints(LaLiga20R)
+xGPts20R <- XGpoints(LaLiga20R)[,-1]
+PPts20R <- Projpoints(LaLiga20R)[,-1]
+PRPts20R <- Poispoints(LaLiga20R)[,-1]
+LaLigaTable20R <- data.frame(TPts20R, xGPts20R, PPts20R, PRPts20R)
+colnames(LaLigaTable20R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable20R <-LaLigaTable20R[order(-LaLigaTable20R$Points),]
+
+XGDif20R <- abs(LaLigaTable20R$Points-LaLigaTable20R$XGPoints)
+ProjDif20R <- abs(LaLigaTable20R$Points-LaLigaTable20R$ProjPoints)
+PoisDif20R <- abs(LaLigaTable20R$Points-LaLigaTable20R$PoisPoints)
+LLXG20R <- sum(XGDif20R)*(38/32)/17
+LLPJ20R <- sum(ProjDif20R)*(38/32)/17
+LLPS20R <- sum(PoisDif20R)*(38/32)/17
+LLXG20R
+LLPJ20R
+LLPS20R
+LL20R <- (LLXG20R + LLPJ20R + LLPS20R)/3
+LL20R
+
+```
+
+# 2021
+```{r}
+library(dplyr)
+LaLiga21R <- filter(LaLiga21, !(Home %in% c("Eibar", "Valladolid", "Huesca")),
+                    !(Away %in% c("Eibar", "Valladolid", "Huesca")))
+```
+
+#Poisson Regression 21R
+```{r}
+modelLaLiga21R <- rbind(data.frame(team=LaLiga21R$Home, opponent=LaLiga21R$Away, home=1, goals=LaLiga21R$HG),
+  data.frame(team=LaLiga21R$Away, opponent=LaLiga21R$Home, home=0, goals=LaLiga21R$AG))
+#View(modelLaLiga21R)
+pois_LaLiga21R <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga21R)
+```
+
+```{r}
+homet21 <- subset(modelLaLiga21R, home == 1)
+awayt21 <- subset(modelLaLiga21R, home == 0)
+pois_prob21 <- matrix(0, nrow = length(homet21$team), ncol = 3)
+colnames(pois_prob21) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga21R, data.frame(team = homet21[1], opponent = homet21[2], home = 1), type="response")
+y <- predict(pois_LaLiga21R, data.frame(team = awayt21[1], opponent = awayt21[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob21[,1]<-pois_prob21[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob21[,2]<-pois_prob21[,2]+scoreProbability
+       } else {
+         pois_prob21[,3]<-pois_prob21[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga21R <- cbind(LaLiga21R, pois_prob21)
+
+LaLiga21R$PRHPoints <- LaLiga21R$PoisHWP*3+LaLiga21R$PoisDP*1
+LaLiga21R$PRAPoints <- LaLiga21R$PoisAWP*3+LaLiga21R$PoisDP*1
+
+LaLiga21R$PRHPoints <- round(LaLiga21R$PRHPoints, 3)
+LaLiga21R$PRAPoints <- round(LaLiga21R$PRAPoints, 3)
+```
+
+```{r}
+TPts21R <- Truepoints(LaLiga21R)
+xGPts21R <- XGpoints(LaLiga21R)[,-1]
+PPts21R <- Projpoints(LaLiga21R)[,-1]
+PRPts21R <- Poispoints(LaLiga21R)[,-1]
+LaLigaTable21R <- data.frame(TPts21R, xGPts21R, PPts21R, PRPts21R)
+colnames(LaLigaTable21R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable21R <-LaLigaTable21R[order(-LaLigaTable21R$Points),]
+
+XGDif21R <- abs(LaLigaTable21R$Points-LaLigaTable21R$XGPoints)
+ProjDif21R <- abs(LaLigaTable21R$Points-LaLigaTable21R$ProjPoints)
+PoisDif21R <- abs(LaLigaTable21R$Points-LaLigaTable21R$PoisPoints)
+LLXG21R <- sum(XGDif21R)*(38/32)/17
+LLPJ21R <- sum(ProjDif21R)*(38/32)/17
+LLPS21R <- sum(PoisDif21R)*(38/32)/17
+LLXG21R
+LLPJ21R
+LLPS21R
+LL21R <- (LLXG21R + LLPJ21R + LLPS21R)/3
+LL21R
+```
+
+# 2022
+```{r}
+library(dplyr)
+LaLiga22R <- filter(LaLiga22, !(Home %in% c("Alaves", "Levante", "Granada")),
+                    !(Away %in% c("Alaves", "Levante", "Granada")))
+```
+
+#Poisson Regression 22R
+```{r}
+modelLaLiga22R <- rbind(data.frame(team=LaLiga22R$Home, opponent=LaLiga22R$Away, home=1, goals=LaLiga22R$HG),
+  data.frame(team=LaLiga22R$Away, opponent=LaLiga22R$Home, home=0, goals=LaLiga22R$AG))
+#View(modelLaLiga22R)
+pois_LaLiga22R <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga22R)
+```
+
+```{r}
+homet22 <- subset(modelLaLiga22R, home == 1)
+awayt22 <- subset(modelLaLiga22R, home == 0)
+pois_prob22 <- matrix(0, nrow = length(homet22$team), ncol = 3)
+colnames(pois_prob22) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga22R, data.frame(team = homet22[1], opponent = homet22[2], home = 1), type="response")
+y <- predict(pois_LaLiga22R, data.frame(team = awayt22[1], opponent = awayt22[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob22[,1]<-pois_prob22[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob22[,2]<-pois_prob22[,2]+scoreProbability
+       } else {
+         pois_prob22[,3]<-pois_prob22[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga22R <- cbind(LaLiga22R, pois_prob22)
+
+LaLiga22R$PRHPoints <- LaLiga22R$PoisHWP*3+LaLiga22R$PoisDP*1
+LaLiga22R$PRAPoints <- LaLiga22R$PoisAWP*3+LaLiga22R$PoisDP*1
+
+LaLiga22R$PRHPoints <- round(LaLiga22R$PRHPoints, 3)
+LaLiga22R$PRAPoints <- round(LaLiga22R$PRAPoints, 3)
+```
+
+```{r}
+TPts22R <- Truepoints(LaLiga22R)
+xGPts22R <- XGpoints(LaLiga22R)[,-1]
+PPts22R <- Projpoints(LaLiga22R)[,-1]
+PRPts22R <- Poispoints(LaLiga22R)[,-1]
+LaLigaTable22R <- data.frame(TPts22R, xGPts22R, PPts22R, PRPts22R)
+colnames(LaLigaTable22R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable22R <-LaLigaTable22R[order(-LaLigaTable22R$Points),]
+
+XGDif22R <- abs(LaLigaTable22R$Points-LaLigaTable22R$XGPoints)
+ProjDif22R <- abs(LaLigaTable22R$Points-LaLigaTable22R$ProjPoints)
+PoisDif22R <- abs(LaLigaTable22R$Points-LaLigaTable22R$PoisPoints)
+LLXG22R <- sum(XGDif22R)*(38/32)/17
+LLPJ22R <- sum(ProjDif22R)*(38/32)/17
+LLPS22R <- sum(PoisDif22R)*(38/32)/17
+LLXG22R
+LLPJ22R
+LLPS22R
+LL22R <- (LLXG22R + LLPJ22R + LLPS22R)/3
+LL22R
+```
+
+# 2023
+```{r}
+library(dplyr)
+LaLiga23R <- filter(LaLiga23, !(Home %in% c("Elche", "Espanol", "Valladolid")),
+                    !(Away %in% c("Elche", "Espanol", "Valladolid")))
+```
+
+#Poisson Regression 23R
+```{r}
+modelLaLiga23R <- rbind(data.frame(team=LaLiga23R$Home, opponent=LaLiga23R$Away, home=1, goals=LaLiga23R$HG),
+  data.frame(team=LaLiga23R$Away, opponent=LaLiga23R$Home, home=0, goals=LaLiga23R$AG))
+#View(modelLaLiga23R)
+pois_LaLiga23R <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga23R)
+```
+
+```{r}
+homet23 <- subset(modelLaLiga23R, home == 1)
+awayt23 <- subset(modelLaLiga23R, home == 0)
+pois_prob23 <- matrix(0, nrow = length(homet23$team), ncol = 3)
+colnames(pois_prob23) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga23R, data.frame(team = homet23[1], opponent = homet23[2], home = 1), type="response")
+y <- predict(pois_LaLiga23R, data.frame(team = awayt23[1], opponent = awayt23[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob23[,1]<-pois_prob23[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob23[,2]<-pois_prob23[,2]+scoreProbability
+       } else {
+         pois_prob23[,3]<-pois_prob23[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga23R <- cbind(LaLiga23R, pois_prob23)
+
+LaLiga23R$PRHPoints <- LaLiga23R$PoisHWP*3+LaLiga23R$PoisDP*1
+LaLiga23R$PRAPoints <- LaLiga23R$PoisAWP*3+LaLiga23R$PoisDP*1
+
+LaLiga23R$PRHPoints <- round(LaLiga23R$PRHPoints, 3)
+LaLiga23R$PRAPoints <- round(LaLiga23R$PRAPoints, 3)
+```
+
+```{r}
+TPts23R <- Truepoints(LaLiga23R)
+xGPts23R <- XGpoints(LaLiga23R)[,-1]
+PPts23R <- Projpoints(LaLiga23R)[,-1]
+PRPts23R <- Poispoints(LaLiga23R)[,-1]
+LaLigaTable23R <- data.frame(TPts23R, xGPts23R, PPts23R, PRPts23R)
+colnames(LaLigaTable23R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable23R <-LaLigaTable23R[order(-LaLigaTable23R$Points),]
+
+XGDif23R <- abs(LaLigaTable23R$Points-LaLigaTable23R$XGPoints)
+ProjDif23R <- abs(LaLigaTable23R$Points-LaLigaTable23R$ProjPoints)
+PoisDif23R <- abs(LaLigaTable23R$Points-LaLigaTable23R$PoisPoints)
+LLXG23R <- sum(XGDif23R)*(38/32)/17
+LLPJ23R <- sum(ProjDif23R)*(38/32)/17
+LLPS23R <- sum(PoisDif23R)*(38/32)/17
+LLXG23R
+LLPJ23R
+LLPS23R
+LL23R <- (LLXG23R + LLPJ23R + LLPS23R)/3
+LL23R
+```
+```{r}
+LaLiga18 <- subset(LaLiga, Season == "2018")
+LaLiga19 <- subset(LaLiga, Season == "2019")
+LaLiga20 <- subset(LaLiga, Season == "2020")
+LaLiga21 <- subset(LaLiga, Season == "2021")
+LaLiga22 <- subset(LaLiga, Season == "2022")
+LaLiga23 <- subset(LaLiga, Season == "2023")
+```
+# Removing Champions League teams 
+# 2018
+```{r}
+library(dplyr)
+LaLiga18C <- filter(LaLiga18, !(Home %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Valencia")),
+                    !(Away %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Valencia")))
+```
+
+#Poisson Regression 18C
+```{r}
+modelLaLiga18C <- rbind(data.frame(team=LaLiga18C$Home, opponent=LaLiga18C$Away, home=1, goals=LaLiga18C$HG),
+  data.frame(team=LaLiga18C$Away, opponent=LaLiga18C$Home, home=0, goals=LaLiga18C$AG))
+#View(modelLaLiga18C)
+pois_LaLiga18C <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga18C)
+```
+
+```{r}
+homet18 <- subset(modelLaLiga18C, home == 1)
+awayt18 <- subset(modelLaLiga18C, home == 0)
+pois_prob18 <- matrix(0, nrow = length(homet18$team), ncol = 3)
+colnames(pois_prob18) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga18C, data.frame(team = homet18[1], opponent = homet18[2], home = 1), type="response")
+y <- predict(pois_LaLiga18C, data.frame(team = awayt18[1], opponent = awayt18[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob18[,1]<-pois_prob18[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob18[,2]<-pois_prob18[,2]+scoreProbability
+       } else {
+         pois_prob18[,3]<-pois_prob18[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga18C <- cbind(LaLiga18C, pois_prob18)
+
+LaLiga18C$PRHPoints <- LaLiga18C$PoisHWP*3+LaLiga18C$PoisDP*1
+LaLiga18C$PRAPoints <- LaLiga18C$PoisAWP*3+LaLiga18C$PoisDP*1
+
+LaLiga18C$PRHPoints <- round(LaLiga18C$PRHPoints, 3)
+LaLiga18C$PRAPoints <- round(LaLiga18C$PRAPoints, 3)
+```
+
+```{r}
+TPts18C <- Truepoints(LaLiga18C)
+xGPts18C <- XGpoints(LaLiga18C)[,-1]
+PPts18C <- Projpoints(LaLiga18C)[,-1]
+PRPts18C <- Poispoints(LaLiga18C)[,-1]
+LaLigaTable18C <- data.frame(TPts18C, xGPts18C, PPts18C, PRPts18C)
+colnames(LaLigaTable18C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable18C <-LaLigaTable18C[order(-LaLigaTable18C$Points),]
+
+XGDif18C <- abs(LaLigaTable18C$Points-LaLigaTable18C$XGPoints)
+ProjDif18C <- abs(LaLigaTable18C$Points-LaLigaTable18C$ProjPoints)
+PoisDif18C <- abs(LaLigaTable18C$Points-LaLigaTable18C$PoisPoints)
+LLXG18C <- sum(XGDif18C)*(38/30)/16
+LLPJ18C <- sum(ProjDif18C)*(38/30)/16
+LLPS18C <- sum(PoisDif18C)*(38/30)/16
+LLXG18C
+LLPJ18C
+LLPS18C
+LL18C <- (LLXG18C + LLPJ18C + LLPS18C)/3
+LL18C
+```
+# 2019
+```{r}
+library(dplyr)
+LaLiga19C <- filter(LaLiga19, !(Home %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Valencia")),
+                    !(Away %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Valencia")))
+```
+
+#Poisson Regression 19C
+```{r}
+modelLaLiga19C <- rbind(data.frame(team=LaLiga19C$Home, opponent=LaLiga19C$Away, home=1, goals=LaLiga19C$HG),
+  data.frame(team=LaLiga19C$Away, opponent=LaLiga19C$Home, home=0, goals=LaLiga19C$AG))
+#View(modelLaLiga19C)
+pois_LaLiga19C <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga19C)
+```
+
+```{r}
+homet19 <- subset(modelLaLiga19C, home == 1)
+awayt19 <- subset(modelLaLiga19C, home == 0)
+pois_prob19 <- matrix(0, nrow = length(homet19$team), ncol = 3)
+colnames(pois_prob19) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga19C, data.frame(team = homet19[1], opponent = homet19[2], home = 1), type="response")
+y <- predict(pois_LaLiga19C, data.frame(team = awayt19[1], opponent = awayt19[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob19[,1]<-pois_prob19[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob19[,2]<-pois_prob19[,2]+scoreProbability
+       } else {
+         pois_prob19[,3]<-pois_prob19[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga19C <- cbind(LaLiga19C, pois_prob19)
+
+LaLiga19C$PRHPoints <- LaLiga19C$PoisHWP*3+LaLiga19C$PoisDP*1
+LaLiga19C$PRAPoints <- LaLiga19C$PoisAWP*3+LaLiga19C$PoisDP*1
+
+LaLiga19C$PRHPoints <- round(LaLiga19C$PRHPoints, 3)
+LaLiga19C$PRAPoints <- round(LaLiga19C$PRAPoints, 3)
+```
+
+```{r}
+TPts19C <- Truepoints(LaLiga19C)
+xGPts19C <- XGpoints(LaLiga19C)[,-1]
+PPts19C <- Projpoints(LaLiga19C)[,-1]
+PRPts19C <- Poispoints(LaLiga19C)[,-1]
+LaLigaTable19C <- data.frame(TPts19C, xGPts19C, PPts19C, PRPts19C)
+colnames(LaLigaTable19C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable19C <- LaLigaTable19C[order(-LaLigaTable19C$Points),]
+
+XGDif19C <- abs(LaLigaTable19C$Points-LaLigaTable19C$XGPoints)
+ProjDif19C <- abs(LaLigaTable19C$Points-LaLigaTable19C$ProjPoints)
+PoisDif19C <- abs(LaLigaTable19C$Points-LaLigaTable19C$PoisPoints)
+LLXG19C <- sum(XGDif19C)*(38/30)/16
+LLPJ19C <- sum(ProjDif19C)*(38/30)/16
+LLPS19C <- sum(PoisDif19C)*(38/30)/16
+LLXG19C
+LLPJ19C
+LLPS19C
+LL19C <- (LLXG19C + LLPJ19C + LLPS19C)/3
+LL19C
+```
+
+# 2020
+```{r}
+library(dplyr)
+LaLiga20C <- filter(LaLiga20, !(Home %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Sevilla")),
+                    !(Away %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Sevilla")))
+```
+
+#Poisson Regression 20C
+```{r}
+modelLaLiga20C <- rbind(data.frame(team=LaLiga20C$Home, opponent=LaLiga20C$Away, home=1, goals=LaLiga20C$HG),
+  data.frame(team=LaLiga20C$Away, opponent=LaLiga20C$Home, home=0, goals=LaLiga20C$AG))
+#View(modelLaLiga20C)
+pois_LaLiga20C <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga20C)
+```
+
+```{r}
+homet20 <- subset(modelLaLiga20C, home == 1)
+awayt20 <- subset(modelLaLiga20C, home == 0)
+pois_prob20 <- matrix(0, nrow = length(homet20$team), ncol = 3)
+colnames(pois_prob20) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga20C, data.frame(team = homet20[1], opponent = homet20[2], home = 1), type="response")
+y <- predict(pois_LaLiga20C, data.frame(team = awayt20[1], opponent = awayt20[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob20[,1]<-pois_prob20[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob20[,2]<-pois_prob20[,2]+scoreProbability
+       } else {
+         pois_prob20[,3]<-pois_prob20[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga20C <- cbind(LaLiga20C, pois_prob20)
+
+LaLiga20C$PRHPoints <- LaLiga20C$PoisHWP*3+LaLiga20C$PoisDP*1
+LaLiga20C$PRAPoints <- LaLiga20C$PoisAWP*3+LaLiga20C$PoisDP*1
+
+LaLiga20C$PRHPoints <- round(LaLiga20C$PRHPoints, 3)
+LaLiga20C$PRAPoints <- round(LaLiga20C$PRAPoints, 3)
+```
+
+```{r}
+TPts20C <- Truepoints(LaLiga20C)
+xGPts20C <- XGpoints(LaLiga20C)[,-1]
+PPts20C <- Projpoints(LaLiga20C)[,-1]
+PRPts20C <- Poispoints(LaLiga20C)[,-1]
+LaLigaTable20C <- data.frame(TPts20C, xGPts20C, PPts20C, PRPts20C)
+colnames(LaLigaTable20C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable20C <-LaLigaTable20C[order(-LaLigaTable20C$Points),]
+
+XGDif20C <- abs(LaLigaTable20C$Points-LaLigaTable20C$XGPoints)
+ProjDif20C <- abs(LaLigaTable20C$Points-LaLigaTable20C$ProjPoints)
+PoisDif20C <- abs(LaLigaTable20C$Points-LaLigaTable20C$PoisPoints)
+LLXG20C <- sum(XGDif20C)*(38/30)/16
+LLPJ20C <- sum(ProjDif20C)*(38/30)/16
+LLPS20C <- sum(PoisDif20C)*(38/30)/16
+LLXG20C
+LLPJ20C
+LLPS20C
+LL20C <- (LLXG20C + LLPJ20C + LLPS20C)/3
+LL20C
+
+```
+
+# 2021
+```{r}
+library(dplyr)
+LaLiga21C <- filter(LaLiga21, !(Home %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Sevilla")),
+                    !(Away %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Sevilla")))
+```
+
+#Poisson Regression 21C
+```{r}
+modelLaLiga21C <- rbind(data.frame(team=LaLiga21C$Home, opponent=LaLiga21C$Away, home=1, goals=LaLiga21C$HG),
+  data.frame(team=LaLiga21C$Away, opponent=LaLiga21C$Home, home=0, goals=LaLiga21C$AG))
+#View(modelLaLiga21C)
+pois_LaLiga21C <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga21C)
+```
+
+```{r}
+homet21 <- subset(modelLaLiga21C, home == 1)
+awayt21 <- subset(modelLaLiga21C, home == 0)
+pois_prob21 <- matrix(0, nrow = length(homet21$team), ncol = 3)
+colnames(pois_prob21) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga21C, data.frame(team = homet21[1], opponent = homet21[2], home = 1), type="response")
+y <- predict(pois_LaLiga21C, data.frame(team = awayt21[1], opponent = awayt21[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob21[,1]<-pois_prob21[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob21[,2]<-pois_prob21[,2]+scoreProbability
+       } else {
+         pois_prob21[,3]<-pois_prob21[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga21C <- cbind(LaLiga21C, pois_prob21)
+
+LaLiga21C$PRHPoints <- LaLiga21C$PoisHWP*3+LaLiga21C$PoisDP*1
+LaLiga21C$PRAPoints <- LaLiga21C$PoisAWP*3+LaLiga21C$PoisDP*1
+
+LaLiga21C$PRHPoints <- round(LaLiga21C$PRHPoints, 3)
+LaLiga21C$PRAPoints <- round(LaLiga21C$PRAPoints, 3)
+```
+
+```{r}
+TPts21C <- Truepoints(LaLiga21C)
+xGPts21C <- XGpoints(LaLiga21C)[,-1]
+PPts21C <- Projpoints(LaLiga21C)[,-1]
+PRPts21C <- Poispoints(LaLiga21C)[,-1]
+LaLigaTable21C <- data.frame(TPts21C, xGPts21C, PPts21C, PRPts21C)
+colnames(LaLigaTable21C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable21C <-LaLigaTable21C[order(-LaLigaTable21C$Points),]
+
+XGDif21C <- abs(LaLigaTable21C$Points-LaLigaTable21C$XGPoints)
+ProjDif21C <- abs(LaLigaTable21C$Points-LaLigaTable21C$ProjPoints)
+PoisDif21C <- abs(LaLigaTable21C$Points-LaLigaTable21C$PoisPoints)
+LLXG21C <- sum(XGDif21C)*(38/30)/16
+LLPJ21C <- sum(ProjDif21C)*(38/30)/16
+LLPS21C <- sum(PoisDif21C)*(38/30)/16
+LLXG21C
+LLPJ21C
+LLPS21C
+LL21C <- (LLXG21C + LLPJ21C + LLPS21C)/3
+LL21C
+```
+
+# 2022
+```{r}
+library(dplyr)
+LaLiga22C <- filter(LaLiga22, !(Home %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Sevilla")),
+                    !(Away %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Sevilla")))
+```
+
+#Poisson Regression 22C
+```{r}
+modelLaLiga22C <- rbind(data.frame(team=LaLiga22C$Home, opponent=LaLiga22C$Away, home=1, goals=LaLiga22C$HG),
+  data.frame(team=LaLiga22C$Away, opponent=LaLiga22C$Home, home=0, goals=LaLiga22C$AG))
+#View(modelLaLiga22C)
+pois_LaLiga22C <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga22C)
+```
+
+```{r}
+homet22 <- subset(modelLaLiga22C, home == 1)
+awayt22 <- subset(modelLaLiga22C, home == 0)
+pois_prob22 <- matrix(0, nrow = length(homet22$team), ncol = 3)
+colnames(pois_prob22) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga22C, data.frame(team = homet22[1], opponent = homet22[2], home = 1), type="response")
+y <- predict(pois_LaLiga22C, data.frame(team = awayt22[1], opponent = awayt22[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob22[,1]<-pois_prob22[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob22[,2]<-pois_prob22[,2]+scoreProbability
+       } else {
+         pois_prob22[,3]<-pois_prob22[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga22C <- cbind(LaLiga22C, pois_prob22)
+
+LaLiga22C$PRHPoints <- LaLiga22C$PoisHWP*3+LaLiga22C$PoisDP*1
+LaLiga22C$PRAPoints <- LaLiga22C$PoisAWP*3+LaLiga22C$PoisDP*1
+
+LaLiga22C$PRHPoints <- round(LaLiga22C$PRHPoints, 3)
+LaLiga22C$PRAPoints <- round(LaLiga22C$PRAPoints, 3)
+```
+
+```{r}
+TPts22C <- Truepoints(LaLiga22C)
+xGPts22C <- XGpoints(LaLiga22C)[,-1]
+PPts22C <- Projpoints(LaLiga22C)[,-1]
+PRPts22C <- Poispoints(LaLiga22C)[,-1]
+LaLigaTable22C <- data.frame(TPts22C, xGPts22C, PPts22C, PRPts22C)
+colnames(LaLigaTable22C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable22C <-LaLigaTable22C[order(-LaLigaTable22C$Points),]
+
+XGDif22C <- abs(LaLigaTable22C$Points-LaLigaTable22C$XGPoints)
+ProjDif22C <- abs(LaLigaTable22C$Points-LaLigaTable22C$ProjPoints)
+PoisDif22C <- abs(LaLigaTable22C$Points-LaLigaTable22C$PoisPoints)
+LLXG22C <- sum(XGDif22C)*(38/30)/16
+LLPJ22C <- sum(ProjDif22C)*(38/30)/16
+LLPS22C <- sum(PoisDif22C)*(38/30)/16
+LLXG22C
+LLPJ22C
+LLPS22C
+LL22C <- (LLXG22C + LLPJ22C + LLPS22C)/3
+LL22C
+```
+
+# 2023
+```{r}
+library(dplyr)
+LaLiga23C <- filter(LaLiga23, !(Home %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Sociedad")),
+                    !(Away %in% c("Barcelona", "Ath Madrid", "Real Madrid", "Sociedad")))
+```
+
+#Poisson Regression 23C
+```{r}
+modelLaLiga23C <- rbind(data.frame(team=LaLiga23C$Home, opponent=LaLiga23C$Away, home=1, goals=LaLiga23C$HG),
+  data.frame(team=LaLiga23C$Away, opponent=LaLiga23C$Home, home=0, goals=LaLiga23C$AG))
+#View(modelLaLiga23C)
+pois_LaLiga23C <- glm(goals ~ home + team + opponent, family=poisson, data = modelLaLiga23C)
+```
+
+```{r}
+homet23 <- subset(modelLaLiga23C, home == 1)
+awayt23 <- subset(modelLaLiga23C, home == 0)
+pois_prob23 <- matrix(0, nrow = length(homet23$team), ncol = 3)
+colnames(pois_prob23) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_LaLiga23C, data.frame(team = homet23[1], opponent = homet23[2], home = 1), type="response")
+y <- predict(pois_LaLiga23C, data.frame(team = awayt23[1], opponent = awayt23[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob23[,1]<-pois_prob23[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob23[,2]<-pois_prob23[,2]+scoreProbability
+       } else {
+         pois_prob23[,3]<-pois_prob23[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+LaLiga23C <- cbind(LaLiga23C, pois_prob23)
+
+LaLiga23C$PRHPoints <- LaLiga23C$PoisHWP*3+LaLiga23C$PoisDP*1
+LaLiga23C$PRAPoints <- LaLiga23C$PoisAWP*3+LaLiga23C$PoisDP*1
+
+LaLiga23C$PRHPoints <- round(LaLiga23C$PRHPoints, 3)
+LaLiga23C$PRAPoints <- round(LaLiga23C$PRAPoints, 3)
+```
+
+```{r}
+TPts23C <- Truepoints(LaLiga23C)
+xGPts23C <- XGpoints(LaLiga23C)[,-1]
+PPts23C <- Projpoints(LaLiga23C)[,-1]
+PRPts23C <- Poispoints(LaLiga23C)[,-1]
+LaLigaTable23C <- data.frame(TPts23C, xGPts23C, PPts23C, PRPts23C)
+colnames(LaLigaTable23C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+LaLigaTable23C <-LaLigaTable23C[order(-LaLigaTable23C$Points),]
+
+XGDif23C <- abs(LaLigaTable23C$Points-LaLigaTable23C$XGPoints)
+ProjDif23C <- abs(LaLigaTable23C$Points-LaLigaTable23C$ProjPoints)
+PoisDif23C <- abs(LaLigaTable23C$Points-LaLigaTable23C$PoisPoints)
+LLXG23C <- sum(XGDif23C)*(38/30)/16
+LLPJ23C <- sum(ProjDif23C)*(38/30)/16
+LLPS23C <- sum(PoisDif23C)*(38/30)/16
+LLXG23C
+LLPJ23C
+LLPS23C
+LL23C <- (LLXG23C + LLPJ23C + LLPS23C)/3
+LL23C
+```
+
+
+
+```{r}
+print("without relegated")
+LLXGRscore <- (LLXG18R + LLXG19R + LLXG20R + LLXG21R + LLXG22R + LLXG23R)/6
+LLXGRscore
+LLPJRscore <- (LLPJ18R + LLPJ19R + LLPJ20R + LLPJ21R + LLPJ22R + LLPJ23R)/6
+LLPJRscore
+LLPSRscore <- (LLPS18R + LLPS19R + LLPS20R + LLPS21R + LLPS22R + LLPS23R)/6
+LLPSRscore
+LLRscore <- (LL18R + LL19R + LL20R + LL21R + LL22R + LL23R)/6
+LLRscore
+
+print("minus 20 + 21")
+LLRscore2 <- (LL18R + LL19R + LL22R + LL23R)/4
+LLRscore2
+
+print("without CL")
+LLXGCscore <- (LLXG18C + LLXG19C + LLXG20C + LLXG21C + LLXG22C + LLXG23C)/6
+LLXGCscore
+LLPJCscore <- (LLPJ18C + LLPJ19C + LLPJ20C + LLPJ21C + LLPJ22C + LLPJ23C)/6
+LLPJCscore
+LLPSCscore <- (LLPS18C + LLPS19C + LLPS20C + LLPS21C + LLPS22C + LLPS23C)/6
+LLPSCscore
+LLCscore <- (LL18C + LL19C + LL20C + LL21C + LL22C + LL23C)/6
+LLCscore
+
+print("minus 20 + 21")
+LLCscore2 <- (LL18C + LL19C + LL22C + LL23C)/4
+LLCscore2
+
+print("with relegated")
+LLXGscore
+LLPJscore
+LLPSscore
+LLscore
+print("minus 20 + 21")
+LLscore2
+```

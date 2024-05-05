@@ -1,0 +1,1400 @@
+---
+title: "Bundesliga"
+author: "Owen Wasilewski"
+date: "2024-03-03"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+Bundesraw <- read.csv("Bundesliga18_23.csv", header = T, sep = ",")
+Bundes <- Bundesraw[,-1]
+```
+
+```{r}
+HG <- Bundes$HG
+AG <- Bundes$AG
+
+Bundes$THP <-ifelse(HG > AG, 3, ifelse(HG==AG, 1, 0))
+Bundes$TAP <-ifelse(AG > HG, 3, ifelse(HG==AG, 1, 0))
+```
+
+# Projected Points
+```{r}
+for(i in 1:1836){
+  UHWP <- (1/Bundes$AvgH)
+  UDP <- (1/Bundes$AvgD)
+  UAWP <- (1/Bundes$AvgA)
+  Bundes$HWP <- (UHWP/(UHWP+UDP+UAWP))
+  Bundes$DP <- (UDP/(UHWP+UDP+UAWP))
+  Bundes$AWP <- (UAWP/(UHWP+UDP+UAWP))
+}
+
+for(i in 1:1836){
+Bundes$PHPoints <- Bundes$HWP*3+Bundes$DP*1
+Bundes$PAPoints <- Bundes$AWP*3+Bundes$DP*1
+}
+Bundes$PHPoints <- round(Bundes$PHPoints, 3)
+Bundes$PAPoints <- round(Bundes$PAPoints, 3)
+```
+
+# Expected Points
+```{r}
+XGProbability <- matrix(0, nrow = length(Bundes$Season), ncol = 3)
+colnames(XGProbability) <- c("XGHWP", "XGDP", "XGAWP")
+x <- Bundes$HXG
+y <- Bundes$AXG
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        XGProbability[,1]<-XGProbability[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         XGProbability[,2]<-XGProbability[,2]+scoreProbability
+       } else {
+         XGProbability[,3]<-XGProbability[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes <- cbind(Bundes, XGProbability)
+
+Bundes$XGHPoints <- Bundes$XGHWP*3+Bundes$XGDP*1
+Bundes$XGAPoints <- Bundes$XGAWP*3+Bundes$XGDP*1
+
+Bundes$XGHPoints <- round(Bundes$XGHPoints, 3)
+Bundes$XGAPoints <- round(Bundes$XGAPoints, 3)
+
+```
+
+```{r}
+Bundes18 <- subset(Bundes, Season == "2018")
+Bundes19 <- subset(Bundes, Season == "2019")
+Bundes20 <- subset(Bundes, Season == "2020")
+Bundes21 <- subset(Bundes, Season == "2021")
+Bundes22 <- subset(Bundes, Season == "2022")
+Bundes23 <- subset(Bundes, Season == "2023")
+```
+
+#Poisson Regression 18
+```{r}
+modelBundes18 <- rbind(data.frame(team=Bundes18$Home, opponent=Bundes18$Away, home=1, goals=Bundes18$HG),
+  data.frame(team=Bundes18$Away, opponent=Bundes18$Home, home=0, goals=Bundes18$AG))
+#View(modelBundes18)
+pois_Bundes18 <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes18)
+```
+
+```{r}
+homet18 <- subset(modelBundes18, home == 1)
+awayt18 <- subset(modelBundes18, home == 0)
+pois_prob18 <- matrix(0, nrow = length(homet18$team), ncol = 3)
+colnames(pois_prob18) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes18, data.frame(team = homet18[1], opponent = homet18[2], home = 1), type="response")
+y <- predict(pois_Bundes18, data.frame(team = awayt18[1], opponent = awayt18[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob18[,1]<-pois_prob18[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob18[,2]<-pois_prob18[,2]+scoreProbability
+       } else {
+         pois_prob18[,3]<-pois_prob18[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes18 <- cbind(Bundes18, pois_prob18)
+
+Bundes18$PRHPoints <- Bundes18$PoisHWP*3+Bundes18$PoisDP*1
+Bundes18$PRAPoints <- Bundes18$PoisAWP*3+Bundes18$PoisDP*1
+
+Bundes18$PRHPoints <- round(Bundes18$PRHPoints, 3)
+Bundes18$PRAPoints <- round(Bundes18$PRAPoints, 3)
+```
+
+#Poisson Regression 19
+```{r}
+modelBundes19 <- rbind(data.frame(team=Bundes19$Home, opponent=Bundes19$Away, home=1, goals=Bundes19$HG),
+  data.frame(team=Bundes19$Away, opponent=Bundes19$Home, home=0, goals=Bundes19$AG))
+#View(modelBundes19)
+pois_Bundes19 <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes19)
+```
+
+```{r}
+homet19 <- subset(modelBundes19, home == 1)
+awayt19 <- subset(modelBundes19, home == 0)
+pois_prob19 <- matrix(0, nrow = length(homet19$team), ncol = 3)
+colnames(pois_prob19) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes19, data.frame(team = homet19[1], opponent = homet19[2], home = 1), type="response")
+y <- predict(pois_Bundes19, data.frame(team = awayt19[1], opponent = awayt19[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob19[,1]<-pois_prob19[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob19[,2]<-pois_prob19[,2]+scoreProbability
+       } else {
+         pois_prob19[,3]<-pois_prob19[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes19 <- cbind(Bundes19, pois_prob19)
+
+Bundes19$PRHPoints <- Bundes19$PoisHWP*3+Bundes19$PoisDP*1
+Bundes19$PRAPoints <- Bundes19$PoisAWP*3+Bundes19$PoisDP*1
+
+Bundes19$PRHPoints <- round(Bundes19$PRHPoints, 3)
+Bundes19$PRAPoints <- round(Bundes19$PRAPoints, 3)
+```
+
+#Poisson Regression 20
+```{r}
+modelBundes20 <- rbind(data.frame(team=Bundes20$Home, opponent=Bundes20$Away, home=1, goals=Bundes20$HG),
+  data.frame(team=Bundes20$Away, opponent=Bundes20$Home, home=0, goals=Bundes20$AG))
+#View(modelBundes21)
+pois_Bundes20 <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes20)
+```
+
+```{r}
+homet20 <- subset(modelBundes20, home == 1)
+awayt20 <- subset(modelBundes20, home == 0)
+pois_prob20 <- matrix(0, nrow = length(homet20$team), ncol = 3)
+colnames(pois_prob20) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes20, data.frame(team = homet20[1], opponent = homet20[2], home = 1), type="response")
+y <- predict(pois_Bundes20, data.frame(team = awayt20[1], opponent = awayt20[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob20[,1]<-pois_prob20[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob20[,2]<-pois_prob20[,2]+scoreProbability
+       } else {
+         pois_prob20[,3]<-pois_prob20[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes20 <- cbind(Bundes20, pois_prob20)
+
+Bundes20$PRHPoints <- Bundes20$PoisHWP*3+Bundes20$PoisDP*1
+Bundes20$PRAPoints <- Bundes20$PoisAWP*3+Bundes20$PoisDP*1
+
+Bundes20$PRHPoints <- round(Bundes20$PRHPoints, 3)
+Bundes20$PRAPoints <- round(Bundes20$PRAPoints, 3)
+```
+
+#Poisson Regression 21
+```{r}
+modelBundes21 <- rbind(data.frame(team=Bundes21$Home, opponent=Bundes21$Away, home=1, goals=Bundes21$HG),
+  data.frame(team=Bundes21$Away, opponent=Bundes21$Home, home=0, goals=Bundes21$AG))
+#View(modelBundes21)
+pois_Bundes21 <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes21)
+```
+
+```{r}
+homet21 <- subset(modelBundes21, home == 1)
+awayt21 <- subset(modelBundes21, home == 0)
+pois_prob21 <- matrix(0, nrow = length(homet21$team), ncol = 3)
+colnames(pois_prob21) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes21, data.frame(team = homet21[1], opponent = homet21[2], home = 1), type="response")
+y <- predict(pois_Bundes21, data.frame(team = awayt21[1], opponent = awayt21[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob21[,1]<-pois_prob21[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob21[,2]<-pois_prob21[,2]+scoreProbability
+       } else {
+         pois_prob21[,3]<-pois_prob21[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes21 <- cbind(Bundes21, pois_prob21)
+
+Bundes21$PRHPoints <- Bundes21$PoisHWP*3+Bundes21$PoisDP*1
+Bundes21$PRAPoints <- Bundes21$PoisAWP*3+Bundes21$PoisDP*1
+
+Bundes21$PRHPoints <- round(Bundes21$PRHPoints, 3)
+Bundes21$PRAPoints <- round(Bundes21$PRAPoints, 3)
+```
+
+#Poisson Regression 22
+```{r}
+modelBundes22 <- rbind(data.frame(team=Bundes22$Home, opponent=Bundes22$Away, home=1, goals=Bundes22$HG),
+  data.frame(team=Bundes22$Away, opponent=Bundes22$Home, home=0, goals=Bundes22$AG))
+#View(modelBundes22)
+pois_Bundes22 <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes22)
+```
+
+```{r}
+homet22 <- subset(modelBundes22, home == 1)
+awayt22 <- subset(modelBundes22, home == 0)
+pois_prob22 <- matrix(0, nrow = length(homet22$team), ncol = 3)
+colnames(pois_prob22) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes22, data.frame(team = homet22[1], opponent = homet22[2], home = 1), type="response")
+y <- predict(pois_Bundes22, data.frame(team = awayt22[1], opponent = awayt22[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob22[,1]<-pois_prob22[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob22[,2]<-pois_prob22[,2]+scoreProbability
+       } else {
+         pois_prob22[,3]<-pois_prob22[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes22 <- cbind(Bundes22, pois_prob22)
+
+Bundes22$PRHPoints <- Bundes22$PoisHWP*3+Bundes22$PoisDP*1
+Bundes22$PRAPoints <- Bundes22$PoisAWP*3+Bundes22$PoisDP*1
+
+Bundes22$PRHPoints <- round(Bundes22$PRHPoints, 3)
+Bundes22$PRAPoints <- round(Bundes22$PRAPoints, 3)
+```
+
+#Poisson Regression 23
+```{r}
+modelBundes23 <- rbind(data.frame(team=Bundes23$Home, opponent=Bundes23$Away, home=1, goals=Bundes23$HG),
+  data.frame(team=Bundes23$Away, opponent=Bundes23$Home, home=0, goals=Bundes23$AG))
+#View(modelBundes23)
+pois_Bundes23 <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes23)
+```
+
+```{r}
+homet23 <- subset(modelBundes23, home == 1)
+awayt23 <- subset(modelBundes23, home == 0)
+pois_prob23 <- matrix(0, nrow = length(homet23$team), ncol = 3)
+colnames(pois_prob23) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes23, data.frame(team = homet23[1], opponent = homet23[2], home = 1), type="response")
+y <- predict(pois_Bundes23, data.frame(team = awayt23[1], opponent = awayt23[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob23[,1]<-pois_prob23[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob23[,2]<-pois_prob23[,2]+scoreProbability
+       } else {
+         pois_prob23[,3]<-pois_prob23[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes23 <- cbind(Bundes23, pois_prob23)
+
+Bundes23$PRHPoints <- Bundes23$PoisHWP*3+Bundes23$PoisDP*1
+Bundes23$PRAPoints <- Bundes23$PoisAWP*3+Bundes23$PoisDP*1
+
+Bundes23$PRHPoints <- round(Bundes23$PRHPoints, 3)
+Bundes23$PRAPoints <- round(Bundes23$PRAPoints, 3)
+```
+
+#Table making 
+```{r}
+library(dplyr)
+Truepoints <- function(season){
+THPts <- season %>% 
+  group_by(Home) %>% 
+  summarize(THPts = sum(THP))
+TAPts <- season %>% 
+  group_by(Away) %>% 
+ summarize(TAPts = sum(TAP))
+TPts <- cbind(THPts,TAPts[,-1])
+TPts$ppts <- TPts$THPts+TPts$TAPts
+TPts <- TPts[,-c(2,3)]
+}
+XGpoints <- function(season){
+xGHPts <- season %>% 
+  group_by(Home) %>% 
+  summarize(xGHPts = sum(XGHPoints))
+xGAPts <- season %>% 
+  group_by(Away) %>% 
+ summarize(xGAPts = sum(XGAPoints))
+xGPts <- cbind(xGHPts,xGAPts[,-1])
+xGPts$xpts <- xGPts$xGHPts+xGPts$xGAPts
+xGPts <- xGPts[,-c(2,3)]
+}
+Projpoints <- function(season){
+PHPts <- season %>% 
+  group_by(Home) %>% 
+  summarize(PHPts = sum(PHPoints))
+PAPts <- season %>% 
+  group_by(Away) %>% 
+ summarize(PAPts = sum(PAPoints))
+PPts <- cbind(PHPts,PAPts[,-1])
+PPts$ppts <- PPts$PHPts+PPts$PAPts
+PPts <- PPts[,-c(2,3)]
+}
+Poispoints <- function(season){
+PRHPts <- season %>% 
+  group_by(Home) %>% 
+  summarize(PRHPts = sum(PRHPoints))
+PRAPts <- season %>% 
+  group_by(Away) %>% 
+ summarize(PRAPts = sum(PRAPoints))
+PRPts <- cbind(PRHPts,PRAPts[,-1])
+PRPts$ppts <- PRPts$PRHPts+PRPts$PRAPts
+PRPts <- PRPts[,-c(2,3)]
+}
+```
+
+#Season 2018
+```{r}
+TPts18 <- Truepoints(Bundes18)
+xGPts18 <- XGpoints(Bundes18)[,-1]
+PPts18 <- Projpoints(Bundes18)[,-1]
+PRPts18 <- Poispoints(Bundes18)[,-1]
+BundesTable18 <- data.frame(TPts18, xGPts18, PPts18, PRPts18)
+colnames(BundesTable18) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable18 <-BundesTable18[order(-BundesTable18$Points),]
+
+XGDif18 <- abs(BundesTable18$Points-BundesTable18$XGPoints)
+ProjDif18 <- abs(BundesTable18$Points-BundesTable18$ProjPoints)
+PoisDif18 <- abs(BundesTable18$Points-BundesTable18$PoisPoints)
+BLXG18 <- sum(XGDif18)*(38/34)/18
+BLPJ18 <- sum(ProjDif18)*(38/34)/18
+BLPS18 <- sum(PoisDif18)*(38/34)/18
+BLXG18
+BLPJ18
+BLPS18
+BL18 <- (BLXG18 + BLPJ18 + BLPS18)/3
+BL18
+```
+
+#Season 2019
+```{r}
+TPts19 <- Truepoints(Bundes19)
+xGPts19 <- XGpoints(Bundes19)[,-1]
+PPts19 <- Projpoints(Bundes19)[,-1]
+PRPts19 <- Poispoints(Bundes19)[,-1]
+BundesTable19 <- data.frame(TPts19, xGPts19, PPts19, PRPts19)
+colnames(BundesTable19) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable19 <-BundesTable19[order(-BundesTable19$Points),]
+
+XGDif19 <- abs(BundesTable19$Points-BundesTable19$XGPoints)
+ProjDif19 <- abs(BundesTable19$Points-BundesTable19$ProjPoints)
+PoisDif19 <- abs(BundesTable19$Points-BundesTable19$PoisPoints)
+BLXG19 <- sum(XGDif19)*(38/34)/18
+BLPJ19 <- sum(ProjDif19)*(38/34)/18
+BLPS19 <- sum(PoisDif19)*(38/34)/18
+BLXG19
+BLPJ19
+BLPS19
+BL19 <- (BLXG19 + BLPJ19 + BLPS19)/3
+BL19
+```
+
+#Season 2020
+```{r}
+TPts20 <- Truepoints(Bundes20)
+xGPts20 <- XGpoints(Bundes20)[,-1]
+PPts20 <- Projpoints(Bundes20)[,-1]
+PRPts20 <- Poispoints(Bundes20)[,-1]
+BundesTable20 <- data.frame(TPts20, xGPts20, PPts20, PRPts20)
+colnames(BundesTable20) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable20 <-BundesTable20[order(-BundesTable20$Points),]
+
+XGDif20 <- abs(BundesTable20$Points-BundesTable20$XGPoints)
+ProjDif20 <- abs(BundesTable20$Points-BundesTable20$ProjPoints)
+PoisDif20 <- abs(BundesTable20$Points-BundesTable20$PoisPoints)
+BLXG20 <- sum(XGDif20)*(38/34)/18
+BLPJ20 <- sum(ProjDif20)*(38/34)/18
+BLPS20 <- sum(PoisDif20)*(38/34)/18
+BLXG20
+BLPJ20
+BLPS20
+BL20 <- (BLXG20 + BLPJ20 + BLPS20)/3
+BL20
+```
+
+#Season 2021
+```{r}
+TPts21 <- Truepoints(Bundes21)
+xGPts21 <- XGpoints(Bundes21)[,-1]
+PPts21 <- Projpoints(Bundes21)[,-1]
+PRPts21 <- Poispoints(Bundes21)[,-1]
+BundesTable21 <- data.frame(TPts21, xGPts21, PPts21, PRPts21)
+colnames(BundesTable21) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable21 <-BundesTable21[order(-BundesTable21$Points),]
+
+XGDif21 <- abs(BundesTable21$Points-BundesTable21$XGPoints)
+ProjDif21 <- abs(BundesTable21$Points-BundesTable21$ProjPoints)
+PoisDif21 <- abs(BundesTable21$Points-BundesTable21$PoisPoints)
+BLXG21 <- sum(XGDif21)*(38/34)/18
+BLPJ21 <- sum(ProjDif21)*(38/34)/18
+BLPS21 <- sum(PoisDif21)*(38/34)/18
+BLXG21
+BLPJ21
+BLPS21
+BL21 <- (BLXG21 + BLPJ21 + BLPS21)/3
+BL21
+```
+
+#Season 2022
+```{r}
+TPts22 <- Truepoints(Bundes22)
+xGPts22 <- XGpoints(Bundes22)[,-1]
+PPts22 <- Projpoints(Bundes22)[,-1]
+PRPts22 <- Poispoints(Bundes22)[,-1]
+BundesTable22 <- data.frame(TPts22, xGPts22, PPts22, PRPts22)
+colnames(BundesTable22) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable22 <-BundesTable22[order(-BundesTable22$Points),]
+
+XGDif22 <- abs(BundesTable22$Points-BundesTable22$XGPoints)
+ProjDif22 <- abs(BundesTable22$Points-BundesTable22$ProjPoints)
+PoisDif22 <- abs(BundesTable22$Points-BundesTable22$PoisPoints)
+BLXG22 <- sum(XGDif22)*(38/34)/18
+BLPJ22 <- sum(ProjDif22)*(38/34)/18
+BLPS22 <- sum(PoisDif22)*(38/34)/18
+BLXG22
+BLPJ22
+BLPS22
+BL22 <- (BLXG22 + BLPJ22 + BLPS22)/3
+BL22
+```
+
+#Season 2023
+```{r}
+TPts23 <- Truepoints(Bundes23)
+xGPts23 <- XGpoints(Bundes23)[,-1]
+PPts23 <- Projpoints(Bundes23)[,-1]
+PRPts23 <- Poispoints(Bundes23)[,-1]
+BundesTable23 <- data.frame(TPts23, xGPts23, PPts23, PRPts23)
+colnames(BundesTable23) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable23 <-BundesTable23[order(-BundesTable23$Points),]
+
+XGDif23 <- abs(BundesTable23$Points-BundesTable23$XGPoints)
+ProjDif23 <- abs(BundesTable23$Points-BundesTable23$ProjPoints)
+PoisDif23 <- abs(BundesTable23$Points-BundesTable23$PoisPoints)
+BLXG23 <- sum(XGDif23)*(38/34)/18
+BLPJ23 <- sum(ProjDif23)*(38/34)/18
+BLPS23 <- sum(PoisDif23)*(38/34)/18
+BLXG23
+BLPJ23
+BLPS23
+BL23 <- (BLXG23 + BLPJ23 + BLPS23)/3
+BL23
+```
+#Final Totals Bundesliga
+```{r}
+BLXGscore <- (BLXG18 + BLXG19 + BLXG20 + BLXG21 + BLXG22 + BLXG23)/6
+BLXGscore
+BLPJscore <- (BLPJ18 + BLPJ19 + BLPJ20 + BLPJ21 + BLPJ22 + BLPJ23)/6
+BLPJscore
+BLPSscore <- (BLPS18 + BLPS19 + BLPS20 + BLPS21 + BLPS22 + BLPS23)/6
+BLPSscore
+BLscore <- (BL18 + BL19 + BL20 + BL21 + BL22 + BL23)/6
+BLscore
+
+#minus 20 + 21
+BLXGscore2 <- (BLXG18 + BLXG19 + BLXG22 + BLXG23)/4
+BLXGscore2
+BLPJscore2 <- (BLPJ18 + BLPJ19 + BLPJ22 + BLPJ23)/4
+BLPJscore2
+BLPSscore2 <- (BLPS18 + BLPS19 + BLPS22 + BLPS23)/4
+BLPSscore2
+BLscore2 <- (BL18 + BL19 + BL22 + BL23)/4
+BLscore2
+
+```
+
+```{r}
+Bundes18 <- subset(Bundes, Season == "2018")
+Bundes19 <- subset(Bundes, Season == "2019")
+Bundes20 <- subset(Bundes, Season == "2020")
+Bundes21 <- subset(Bundes, Season == "2021")
+Bundes22 <- subset(Bundes, Season == "2022")
+Bundes23 <- subset(Bundes, Season == "2023")
+```
+# Removing relegated teams 
+# 2018
+```{r}
+library(dplyr)
+Bundes18R <- filter(Bundes18, !(Home %in% c("Wolfsburg", "Hamburg", "FC Koln")),
+                    !(Away %in% c("Wolfsburg", "Hamburg", "FC Koln")))
+```
+
+#Poisson Regression 18R
+```{r}
+modelBundes18R <- rbind(data.frame(team=Bundes18R$Home, opponent=Bundes18R$Away, home=1, goals=Bundes18R$HG),
+  data.frame(team=Bundes18R$Away, opponent=Bundes18R$Home, home=0, goals=Bundes18R$AG))
+#View(modelBundes18R)
+pois_Bundes18R <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes18R)
+```
+
+```{r}
+homet18 <- subset(modelBundes18R, home == 1)
+awayt18 <- subset(modelBundes18R, home == 0)
+pois_prob18 <- matrix(0, nrow = length(homet18$team), ncol = 3)
+colnames(pois_prob18) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes18R, data.frame(team = homet18[1], opponent = homet18[2], home = 1), type="response")
+y <- predict(pois_Bundes18R, data.frame(team = awayt18[1], opponent = awayt18[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob18[,1]<-pois_prob18[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob18[,2]<-pois_prob18[,2]+scoreProbability
+       } else {
+         pois_prob18[,3]<-pois_prob18[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes18R <- cbind(Bundes18R, pois_prob18)
+
+Bundes18R$PRHPoints <- Bundes18R$PoisHWP*3+Bundes18R$PoisDP*1
+Bundes18R$PRAPoints <- Bundes18R$PoisAWP*3+Bundes18R$PoisDP*1
+
+Bundes18R$PRHPoints <- round(Bundes18R$PRHPoints, 3)
+Bundes18R$PRAPoints <- round(Bundes18R$PRAPoints, 3)
+```
+
+```{r}
+TPts18R <- Truepoints(Bundes18R)
+xGPts18R <- XGpoints(Bundes18R)[,-1]
+PPts18R <- Projpoints(Bundes18R)[,-1]
+PRPts18R <- Poispoints(Bundes18R)[,-1]
+BundesTable18R <- data.frame(TPts18R, xGPts18R, PPts18R, PRPts18R)
+colnames(BundesTable18R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable18R <-BundesTable18R[order(-BundesTable18R$Points),]
+
+XGDif18R <- abs(BundesTable18R$Points-BundesTable18R$XGPoints)
+ProjDif18R <- abs(BundesTable18R$Points-BundesTable18R$ProjPoints)
+PoisDif18R <- abs(BundesTable18R$Points-BundesTable18R$PoisPoints)
+BLXG18R <- sum(XGDif18R)*(38/28)/15
+BLPJ18R <- sum(ProjDif18R)*(38/28)/15
+BLPS18R <- sum(PoisDif18R)*(38/28)/15
+BLXG18R
+BLPJ18R
+BLPS18R
+BL18R <- (BLXG18R + BLPJ18R + BLPS18R)/3
+BL18R
+
+```
+# 2019
+```{r}
+library(dplyr)
+Bundes19R <- filter(Bundes19, !(Home %in% c("Stuttgart", "Hannover", "Nurnberg")),
+                    !(Away %in% c("Stuttgart", "Hannover", "Nurnberg")))
+```
+
+#Poisson Regression 19R
+```{r}
+modelBundes19R <- rbind(data.frame(team=Bundes19R$Home, opponent=Bundes19R$Away, home=1, goals=Bundes19R$HG),
+  data.frame(team=Bundes19R$Away, opponent=Bundes19R$Home, home=0, goals=Bundes19R$AG))
+#View(modelBundes19R)
+pois_Bundes19R <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes19R)
+```
+
+```{r}
+homet19 <- subset(modelBundes19R, home == 1)
+awayt19 <- subset(modelBundes19R, home == 0)
+pois_prob19 <- matrix(0, nrow = length(homet19$team), ncol = 3)
+colnames(pois_prob19) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes19R, data.frame(team = homet19[1], opponent = homet19[2], home = 1), type="response")
+y <- predict(pois_Bundes19R, data.frame(team = awayt19[1], opponent = awayt19[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob19[,1]<-pois_prob19[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob19[,2]<-pois_prob19[,2]+scoreProbability
+       } else {
+         pois_prob19[,3]<-pois_prob19[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes19R <- cbind(Bundes19R, pois_prob19)
+
+Bundes19R$PRHPoints <- Bundes19R$PoisHWP*3+Bundes19R$PoisDP*1
+Bundes19R$PRAPoints <- Bundes19R$PoisAWP*3+Bundes19R$PoisDP*1
+
+Bundes19R$PRHPoints <- round(Bundes19R$PRHPoints, 3)
+Bundes19R$PRAPoints <- round(Bundes19R$PRAPoints, 3)
+```
+
+```{r}
+TPts19R <- Truepoints(Bundes19R)
+xGPts19R <- XGpoints(Bundes19R)[,-1]
+PPts19R <- Projpoints(Bundes19R)[,-1]
+PRPts19R <- Poispoints(Bundes19R)[,-1]
+BundesTable19R <- data.frame(TPts19R, xGPts19R, PPts19R, PRPts19R)
+colnames(BundesTable19R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable19R <-BundesTable19R[order(-BundesTable19R$Points),]
+
+XGDif19R <- abs(BundesTable19R$Points-BundesTable19R$XGPoints)
+ProjDif19R <- abs(BundesTable19R$Points-BundesTable19R$ProjPoints)
+PoisDif19R <- abs(BundesTable19R$Points-BundesTable19R$PoisPoints)
+BLXG19R <- sum(XGDif19R)*(38/28)/15
+BLPJ19R <- sum(ProjDif19R)*(38/28)/15
+BLPS19R <- sum(PoisDif19R)*(38/28)/15
+BLXG19R
+BLPJ19R
+BLPS19R
+BL19R <- (BLXG19R + BLPJ19R + BLPS19R)/3
+BL19R
+```
+
+# 2020
+```{r}
+library(dplyr)
+Bundes20R <- filter(Bundes20, !(Home %in% c("Werder Bremen", "Fortuna Dusseldorf", "Paderborn")),
+                    !(Away %in% c("Werder Bremen", "Fortuna Dusseldorf", "Paderborn")))
+```
+
+#Poisson Regression 20R
+```{r}
+modelBundes20R <- rbind(data.frame(team=Bundes20R$Home, opponent=Bundes20R$Away, home=1, goals=Bundes20R$HG),
+  data.frame(team=Bundes20R$Away, opponent=Bundes20R$Home, home=0, goals=Bundes20R$AG))
+#View(modelBundes20R)
+pois_Bundes20R <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes20R)
+```
+
+```{r}
+homet20 <- subset(modelBundes20R, home == 1)
+awayt20 <- subset(modelBundes20R, home == 0)
+pois_prob20 <- matrix(0, nrow = length(homet20$team), ncol = 3)
+colnames(pois_prob20) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes20R, data.frame(team = homet20[1], opponent = homet20[2], home = 1), type="response")
+y <- predict(pois_Bundes20R, data.frame(team = awayt20[1], opponent = awayt20[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob20[,1]<-pois_prob20[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob20[,2]<-pois_prob20[,2]+scoreProbability
+       } else {
+         pois_prob20[,3]<-pois_prob20[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes20R <- cbind(Bundes20R, pois_prob20)
+
+Bundes20R$PRHPoints <- Bundes20R$PoisHWP*3+Bundes20R$PoisDP*1
+Bundes20R$PRAPoints <- Bundes20R$PoisAWP*3+Bundes20R$PoisDP*1
+
+Bundes20R$PRHPoints <- round(Bundes20R$PRHPoints, 3)
+Bundes20R$PRAPoints <- round(Bundes20R$PRAPoints, 3)
+```
+
+```{r}
+TPts20R <- Truepoints(Bundes20R)
+xGPts20R <- XGpoints(Bundes20R)[,-1]
+PPts20R <- Projpoints(Bundes20R)[,-1]
+PRPts20R <- Poispoints(Bundes20R)[,-1]
+BundesTable20R <- data.frame(TPts20R, xGPts20R, PPts20R, PRPts20R)
+colnames(BundesTable20R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable20R <-BundesTable20R[order(-BundesTable20R$Points),]
+
+XGDif20R <- abs(BundesTable20R$Points-BundesTable20R$XGPoints)
+ProjDif20R <- abs(BundesTable20R$Points-BundesTable20R$ProjPoints)
+PoisDif20R <- abs(BundesTable20R$Points-BundesTable20R$PoisPoints)
+BLXG20R <- sum(XGDif20R)*(38/28)/15
+BLPJ20R <- sum(ProjDif20R)*(38/28)/15
+BLPS20R <- sum(PoisDif20R)*(38/28)/15
+BLXG20R
+BLPJ20R
+BLPS20R
+BL20R <- (BLXG20R + BLPJ20R + BLPS20R)/3
+BL20R
+```
+
+# 2021
+```{r}
+library(dplyr)
+Bundes21R <- filter(Bundes21, !(Home %in% c("FC Koln", "Werder Bremen", "Schalke 04")),
+                    !(Away %in% c("FC Koln", "Werder Bremen", "Schalke 04")))
+```
+
+#Poisson Regression 21R
+```{r}
+modelBundes21R <- rbind(data.frame(team=Bundes21R$Home, opponent=Bundes21R$Away, home=1, goals=Bundes21R$HG),
+  data.frame(team=Bundes21R$Away, opponent=Bundes21R$Home, home=0, goals=Bundes21R$AG))
+#View(modelBundes21R)
+pois_Bundes21R <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes21R)
+```
+
+```{r}
+homet21 <- subset(modelBundes21R, home == 1)
+awayt21 <- subset(modelBundes21R, home == 0)
+pois_prob21 <- matrix(0, nrow = length(homet21$team), ncol = 3)
+colnames(pois_prob21) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes21R, data.frame(team = homet21[1], opponent = homet21[2], home = 1), type="response")
+y <- predict(pois_Bundes21R, data.frame(team = awayt21[1], opponent = awayt21[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob21[,1]<-pois_prob21[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob21[,2]<-pois_prob21[,2]+scoreProbability
+       } else {
+         pois_prob21[,3]<-pois_prob21[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes21R <- cbind(Bundes21R, pois_prob21)
+
+Bundes21R$PRHPoints <- Bundes21R$PoisHWP*3+Bundes21R$PoisDP*1
+Bundes21R$PRAPoints <- Bundes21R$PoisAWP*3+Bundes21R$PoisDP*1
+
+Bundes21R$PRHPoints <- round(Bundes21R$PRHPoints, 3)
+Bundes21R$PRAPoints <- round(Bundes21R$PRAPoints, 3)
+```
+
+```{r}
+TPts21R <- Truepoints(Bundes21R)
+xGPts21R <- XGpoints(Bundes21R)[,-1]
+PPts21R <- Projpoints(Bundes21R)[,-1]
+PRPts21R <- Poispoints(Bundes21R)[,-1]
+BundesTable21R <- data.frame(TPts21R, xGPts21R, PPts21R, PRPts21R)
+colnames(BundesTable21R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable21R <-BundesTable21R[order(-BundesTable21R$Points),]
+
+XGDif21R <- abs(BundesTable21R$Points-BundesTable21R$XGPoints)
+ProjDif21R <- abs(BundesTable21R$Points-BundesTable21R$ProjPoints)
+PoisDif21R <- abs(BundesTable21R$Points-BundesTable21R$PoisPoints)
+BLXG21R <- sum(XGDif21R)*(38/28)/15
+BLPJ21R <- sum(ProjDif21R)*(38/28)/15
+BLPS21R <- sum(PoisDif21R)*(38/28)/15
+BLXG21R
+BLPJ21R
+BLPS21R
+BL21R <- (BLXG21R + BLPJ21R + BLPS21R)/3
+BL21R
+```
+
+# 2022
+```{r}
+library(dplyr)
+Bundes22R <- filter(Bundes22, !(Home %in% c("Stuttgart", "Bielefeld", "Greuther Furth")),
+                    !(Away %in% c("Stuttgart", "Bielefeld", "Greuther Furth")))
+```
+
+#Poisson Regression 22R
+```{r}
+modelBundes22R <- rbind(data.frame(team=Bundes22R$Home, opponent=Bundes22R$Away, home=1, goals=Bundes22R$HG),
+  data.frame(team=Bundes22R$Away, opponent=Bundes22R$Home, home=0, goals=Bundes22R$AG))
+#View(modelBundes22R)
+pois_Bundes22R <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes22R)
+```
+
+```{r}
+homet22 <- subset(modelBundes22R, home == 1)
+awayt22 <- subset(modelBundes22R, home == 0)
+pois_prob22 <- matrix(0, nrow = length(homet22$team), ncol = 3)
+colnames(pois_prob22) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes22R, data.frame(team = homet22[1], opponent = homet22[2], home = 1), type="response")
+y <- predict(pois_Bundes22R, data.frame(team = awayt22[1], opponent = awayt22[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob22[,1]<-pois_prob22[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob22[,2]<-pois_prob22[,2]+scoreProbability
+       } else {
+         pois_prob22[,3]<-pois_prob22[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes22R <- cbind(Bundes22R, pois_prob22)
+
+Bundes22R$PRHPoints <- Bundes22R$PoisHWP*3+Bundes22R$PoisDP*1
+Bundes22R$PRAPoints <- Bundes22R$PoisAWP*3+Bundes22R$PoisDP*1
+
+Bundes22R$PRHPoints <- round(Bundes22R$PRHPoints, 3)
+Bundes22R$PRAPoints <- round(Bundes22R$PRAPoints, 3)
+```
+
+```{r}
+TPts22R <- Truepoints(Bundes22R)
+xGPts22R <- XGpoints(Bundes22R)[,-1]
+PPts22R <- Projpoints(Bundes22R)[,-1]
+PRPts22R <- Poispoints(Bundes22R)[,-1]
+BundesTable22R <- data.frame(TPts22R, xGPts22R, PPts22R, PRPts22R)
+colnames(BundesTable22R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable22R <-BundesTable22R[order(-BundesTable22R$Points),]
+
+XGDif22R <- abs(BundesTable22R$Points-BundesTable22R$XGPoints)
+ProjDif22R <- abs(BundesTable22R$Points-BundesTable22R$ProjPoints)
+PoisDif22R <- abs(BundesTable22R$Points-BundesTable22R$PoisPoints)
+BLXG22R <- sum(XGDif22R)*(38/28)/15
+BLPJ22R <- sum(ProjDif22R)*(38/28)/15
+BLPS22R <- sum(PoisDif22R)*(38/28)/15
+BLXG22R
+BLPJ22R
+BLPS22R
+BL22R <- (BLXG22R + BLPJ22R + BLPS22R)/3
+BL22R
+```
+
+# 2023
+```{r}
+library(dplyr)
+Bundes23R <- filter(Bundes23, !(Home %in% c("Stuttgart", "Schalke 04", "Hertha")),
+                    !(Away %in% c("Stuttgart", "Schalke 04", "Hertha")))
+```
+
+#Poisson Regression 23R
+```{r}
+modelBundes23R <- rbind(data.frame(team=Bundes23R$Home, opponent=Bundes23R$Away, home=1, goals=Bundes23R$HG),
+  data.frame(team=Bundes23R$Away, opponent=Bundes23R$Home, home=0, goals=Bundes23R$AG))
+#View(modelBundes23R)
+pois_Bundes23R <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes23R)
+```
+
+```{r}
+homet23 <- subset(modelBundes23R, home == 1)
+awayt23 <- subset(modelBundes23R, home == 0)
+pois_prob23 <- matrix(0, nrow = length(homet23$team), ncol = 3)
+colnames(pois_prob23) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes23R, data.frame(team = homet23[1], opponent = homet23[2], home = 1), type="response")
+y <- predict(pois_Bundes23R, data.frame(team = awayt23[1], opponent = awayt23[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob23[,1]<-pois_prob23[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob23[,2]<-pois_prob23[,2]+scoreProbability
+       } else {
+         pois_prob23[,3]<-pois_prob23[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes23R <- cbind(Bundes23R, pois_prob23)
+
+Bundes23R$PRHPoints <- Bundes23R$PoisHWP*3+Bundes23R$PoisDP*1
+Bundes23R$PRAPoints <- Bundes23R$PoisAWP*3+Bundes23R$PoisDP*1
+
+Bundes23R$PRHPoints <- round(Bundes23R$PRHPoints, 3)
+Bundes23R$PRAPoints <- round(Bundes23R$PRAPoints, 3)
+```
+
+```{r}
+TPts23R <- Truepoints(Bundes23R)
+xGPts23R <- XGpoints(Bundes23R)[,-1]
+PPts23R <- Projpoints(Bundes23R)[,-1]
+PRPts23R <- Poispoints(Bundes23R)[,-1]
+BundesTable23R <- data.frame(TPts23R, xGPts23R, PPts23R, PRPts23R)
+colnames(BundesTable23R) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable23R <-BundesTable23R[order(-BundesTable23R$Points),]
+
+XGDif23R <- abs(BundesTable23R$Points-BundesTable23R$XGPoints)
+ProjDif23R <- abs(BundesTable23R$Points-BundesTable23R$ProjPoints)
+PoisDif23R <- abs(BundesTable23R$Points-BundesTable23R$PoisPoints)
+BLXG23R <- sum(XGDif23R)*(38/28)/15
+BLPJ23R <- sum(ProjDif23R)*(38/28)/15
+BLPS23R <- sum(PoisDif23R)*(38/28)/15
+BLXG23R
+BLPJ23R
+BLPS23R
+BL23R <- (BLXG23R + BLPJ23R + BLPS23R)/3
+BL23R
+```
+
+
+```{r}
+Bundes18 <- subset(Bundes, Season == "2018")
+Bundes19 <- subset(Bundes, Season == "2019")
+Bundes20 <- subset(Bundes, Season == "2020")
+Bundes21 <- subset(Bundes, Season == "2021")
+Bundes22 <- subset(Bundes, Season == "2022")
+Bundes23 <- subset(Bundes, Season == "2023")
+```
+# Removing champions league teams 
+# 2018
+```{r}
+library(dplyr)
+Bundes18C <- filter(Bundes18, !(Home %in% c("Bayern Munich", "Schalke 04", "Dortmund", "Hoffenheim")),
+                    !(Away %in% c("Bayern Munich", "Schalke 04", "Dortmund", "Hoffenheim")))
+```
+
+#Poisson Regression 18C
+```{r}
+modelBundes18C <- rbind(data.frame(team=Bundes18C$Home, opponent=Bundes18C$Away, home=1, goals=Bundes18C$HG),
+  data.frame(team=Bundes18C$Away, opponent=Bundes18C$Home, home=0, goals=Bundes18C$AG))
+#View(modelBundes18C)
+pois_Bundes18C <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes18C)
+```
+
+```{r}
+homet18 <- subset(modelBundes18C, home == 1)
+awayt18 <- subset(modelBundes18C, home == 0)
+pois_prob18 <- matrix(0, nrow = length(homet18$team), ncol = 3)
+colnames(pois_prob18) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes18C, data.frame(team = homet18[1], opponent = homet18[2], home = 1), type="response")
+y <- predict(pois_Bundes18C, data.frame(team = awayt18[1], opponent = awayt18[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob18[,1]<-pois_prob18[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob18[,2]<-pois_prob18[,2]+scoreProbability
+       } else {
+         pois_prob18[,3]<-pois_prob18[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes18C <- cbind(Bundes18C, pois_prob18)
+
+Bundes18C$PRHPoints <- Bundes18C$PoisHWP*3+Bundes18C$PoisDP*1
+Bundes18C$PRAPoints <- Bundes18C$PoisAWP*3+Bundes18C$PoisDP*1
+
+Bundes18C$PRHPoints <- round(Bundes18C$PRHPoints, 3)
+Bundes18C$PRAPoints <- round(Bundes18C$PRAPoints, 3)
+```
+
+```{r}
+TPts18C <- Truepoints(Bundes18C)
+xGPts18C <- XGpoints(Bundes18C)[,-1]
+PPts18C <- Projpoints(Bundes18C)[,-1]
+PRPts18C <- Poispoints(Bundes18C)[,-1]
+BundesTable18C <- data.frame(TPts18C, xGPts18C, PPts18C, PRPts18C)
+colnames(BundesTable18C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable18C <-BundesTable18C[order(-BundesTable18C$Points),]
+
+XGDif18C <- abs(BundesTable18C$Points-BundesTable18C$XGPoints)
+ProjDif18C <- abs(BundesTable18C$Points-BundesTable18C$ProjPoints)
+PoisDif18C <- abs(BundesTable18C$Points-BundesTable18C$PoisPoints)
+BLXG18C <- sum(XGDif18C)*(38/26)/14
+BLPJ18C <- sum(ProjDif18C)*(38/26)/14
+BLPS18C <- sum(PoisDif18C)*(38/26)/14
+BLXG18C
+BLPJ18C
+BLPS18C
+BL18C <- (BLXG18C + BLPJ18C + BLPS18C)/3
+BL18C
+
+```
+# 2019
+```{r}
+library(dplyr)
+Bundes19C <- filter(Bundes19, !(Home %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "Leverkusen")),
+                    !(Away %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "Leverkusen")))
+```
+
+#Poisson Regression 19C
+```{r}
+modelBundes19C <- rbind(data.frame(team=Bundes19C$Home, opponent=Bundes19C$Away, home=1, goals=Bundes19C$HG),
+  data.frame(team=Bundes19C$Away, opponent=Bundes19C$Home, home=0, goals=Bundes19C$AG))
+#View(modelBundes19C)
+pois_Bundes19C <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes19C)
+```
+
+```{r}
+homet19 <- subset(modelBundes19C, home == 1)
+awayt19 <- subset(modelBundes19C, home == 0)
+pois_prob19 <- matrix(0, nrow = length(homet19$team), ncol = 3)
+colnames(pois_prob19) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes19C, data.frame(team = homet19[1], opponent = homet19[2], home = 1), type="response")
+y <- predict(pois_Bundes19C, data.frame(team = awayt19[1], opponent = awayt19[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob19[,1]<-pois_prob19[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob19[,2]<-pois_prob19[,2]+scoreProbability
+       } else {
+         pois_prob19[,3]<-pois_prob19[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes19C <- cbind(Bundes19C, pois_prob19)
+
+Bundes19C$PRHPoints <- Bundes19C$PoisHWP*3+Bundes19C$PoisDP*1
+Bundes19C$PRAPoints <- Bundes19C$PoisAWP*3+Bundes19C$PoisDP*1
+
+Bundes19C$PRHPoints <- round(Bundes19C$PRHPoints, 3)
+Bundes19C$PRAPoints <- round(Bundes19C$PRAPoints, 3)
+```
+
+```{r}
+TPts19C <- Truepoints(Bundes19C)
+xGPts19C <- XGpoints(Bundes19C)[,-1]
+PPts19C <- Projpoints(Bundes19C)[,-1]
+PRPts19C <- Poispoints(Bundes19C)[,-1]
+BundesTable19C <- data.frame(TPts19C, xGPts19C, PPts19C, PRPts19C)
+colnames(BundesTable19C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable19C <-BundesTable19C[order(-BundesTable19C$Points),]
+
+XGDif19C <- abs(BundesTable19C$Points-BundesTable19C$XGPoints)
+ProjDif19C <- abs(BundesTable19C$Points-BundesTable19C$ProjPoints)
+PoisDif19C <- abs(BundesTable19C$Points-BundesTable19C$PoisPoints)
+BLXG19C <- sum(XGDif19C)*(38/26)/14
+BLPJ19C <- sum(ProjDif19C)*(38/26)/14
+BLPS19C <- sum(PoisDif19C)*(38/26)/14
+BLXG19C
+BLPJ19C
+BLPS19C
+BL19C <- (BLXG19C + BLPJ19C + BLPS19C)/3
+BL19C
+```
+
+# 2020
+```{r}
+library(dplyr)
+Bundes20C <- filter(Bundes20, !(Home %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "M'gladbach")),
+                    !(Away %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "M'gladbach")))
+```
+
+#Poisson Regression 20C
+```{r}
+modelBundes20C <- rbind(data.frame(team=Bundes20C$Home, opponent=Bundes20C$Away, home=1, goals=Bundes20C$HG),
+  data.frame(team=Bundes20C$Away, opponent=Bundes20C$Home, home=0, goals=Bundes20C$AG))
+#View(modelBundes20C)
+pois_Bundes20C <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes20C)
+```
+
+```{r}
+homet20 <- subset(modelBundes20C, home == 1)
+awayt20 <- subset(modelBundes20C, home == 0)
+pois_prob20 <- matrix(0, nrow = length(homet20$team), ncol = 3)
+colnames(pois_prob20) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes20C, data.frame(team = homet20[1], opponent = homet20[2], home = 1), type="response")
+y <- predict(pois_Bundes20C, data.frame(team = awayt20[1], opponent = awayt20[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob20[,1]<-pois_prob20[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob20[,2]<-pois_prob20[,2]+scoreProbability
+       } else {
+         pois_prob20[,3]<-pois_prob20[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes20C <- cbind(Bundes20C, pois_prob20)
+
+Bundes20C$PRHPoints <- Bundes20C$PoisHWP*3+Bundes20C$PoisDP*1
+Bundes20C$PRAPoints <- Bundes20C$PoisAWP*3+Bundes20C$PoisDP*1
+
+Bundes20C$PRHPoints <- round(Bundes20C$PRHPoints, 3)
+Bundes20C$PRAPoints <- round(Bundes20C$PRAPoints, 3)
+```
+
+```{r}
+TPts20C <- Truepoints(Bundes20C)
+xGPts20C <- XGpoints(Bundes20C)[,-1]
+PPts20C <- Projpoints(Bundes20C)[,-1]
+PRPts20C <- Poispoints(Bundes20C)[,-1]
+BundesTable20C <- data.frame(TPts20C, xGPts20C, PPts20C, PRPts20C)
+colnames(BundesTable20C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable20C <-BundesTable20C[order(-BundesTable20C$Points),]
+
+XGDif20C <- abs(BundesTable20C$Points-BundesTable20C$XGPoints)
+ProjDif20C <- abs(BundesTable20C$Points-BundesTable20C$ProjPoints)
+PoisDif20C <- abs(BundesTable20C$Points-BundesTable20C$PoisPoints)
+BLXG20C <- sum(XGDif20C)*(38/26)/14
+BLPJ20C <- sum(ProjDif20C)*(38/26)/14
+BLPS20C <- sum(PoisDif20C)*(38/26)/14
+BLXG20C
+BLPJ20C
+BLPS20C
+BL20C <- (BLXG20C + BLPJ20C + BLPS20C)/3
+BL20C
+```
+
+# 2021
+```{r}
+library(dplyr)
+Bundes21C <- filter(Bundes21, !(Home %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "Wolfsburg")),
+                    !(Away %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "Wolfsburg")))
+```
+
+#Poisson Regression 21C
+```{r}
+modelBundes21C <- rbind(data.frame(team=Bundes21C$Home, opponent=Bundes21C$Away, home=1, goals=Bundes21C$HG),
+  data.frame(team=Bundes21C$Away, opponent=Bundes21C$Home, home=0, goals=Bundes21C$AG))
+#View(modelBundes21C)
+pois_Bundes21C <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes21C)
+```
+
+```{r}
+homet21 <- subset(modelBundes21C, home == 1)
+awayt21 <- subset(modelBundes21C, home == 0)
+pois_prob21 <- matrix(0, nrow = length(homet21$team), ncol = 3)
+colnames(pois_prob21) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes21C, data.frame(team = homet21[1], opponent = homet21[2], home = 1), type="response")
+y <- predict(pois_Bundes21C, data.frame(team = awayt21[1], opponent = awayt21[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob21[,1]<-pois_prob21[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob21[,2]<-pois_prob21[,2]+scoreProbability
+       } else {
+         pois_prob21[,3]<-pois_prob21[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes21C <- cbind(Bundes21C, pois_prob21)
+
+Bundes21C$PRHPoints <- Bundes21C$PoisHWP*3+Bundes21C$PoisDP*1
+Bundes21C$PRAPoints <- Bundes21C$PoisAWP*3+Bundes21C$PoisDP*1
+
+Bundes21C$PRHPoints <- round(Bundes21C$PRHPoints, 3)
+Bundes21C$PRAPoints <- round(Bundes21C$PRAPoints, 3)
+```
+
+```{r}
+TPts21C <- Truepoints(Bundes21C)
+xGPts21C <- XGpoints(Bundes21C)[,-1]
+PPts21C <- Projpoints(Bundes21C)[,-1]
+PRPts21C <- Poispoints(Bundes21C)[,-1]
+BundesTable21C <- data.frame(TPts21C, xGPts21C, PPts21C, PRPts21C)
+colnames(BundesTable21C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable21C <-BundesTable21C[order(-BundesTable21C$Points),]
+
+XGDif21C <- abs(BundesTable21C$Points-BundesTable21C$XGPoints)
+ProjDif21C <- abs(BundesTable21C$Points-BundesTable21C$ProjPoints)
+PoisDif21C <- abs(BundesTable21C$Points-BundesTable21C$PoisPoints)
+BLXG21C <- sum(XGDif21C)*(38/26)/14
+BLPJ21C <- sum(ProjDif21C)*(38/26)/14
+BLPS21C <- sum(PoisDif21C)*(38/26)/14
+BLXG21C
+BLPJ21C
+BLPS21C
+BL21C <- (BLXG21C + BLPJ21C + BLPS21C)/3
+BL21C
+```
+
+# 2022
+```{r}
+library(dplyr)
+Bundes22C <- filter(Bundes22, !(Home %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "Leverkusen")),
+                    !(Away %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "Leverkusen")))
+```
+
+#Poisson Regression 22C
+```{r}
+modelBundes22C <- rbind(data.frame(team=Bundes22C$Home, opponent=Bundes22C$Away, home=1, goals=Bundes22C$HG),
+  data.frame(team=Bundes22C$Away, opponent=Bundes22C$Home, home=0, goals=Bundes22C$AG))
+#View(modelBundes22C)
+pois_Bundes22C <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes22C)
+```
+
+```{r}
+homet22 <- subset(modelBundes22C, home == 1)
+awayt22 <- subset(modelBundes22C, home == 0)
+pois_prob22 <- matrix(0, nrow = length(homet22$team), ncol = 3)
+colnames(pois_prob22) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes22C, data.frame(team = homet22[1], opponent = homet22[2], home = 1), type="response")
+y <- predict(pois_Bundes22C, data.frame(team = awayt22[1], opponent = awayt22[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob22[,1]<-pois_prob22[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob22[,2]<-pois_prob22[,2]+scoreProbability
+       } else {
+         pois_prob22[,3]<-pois_prob22[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes22C <- cbind(Bundes22C, pois_prob22)
+
+Bundes22C$PRHPoints <- Bundes22C$PoisHWP*3+Bundes22C$PoisDP*1
+Bundes22C$PRAPoints <- Bundes22C$PoisAWP*3+Bundes22C$PoisDP*1
+
+Bundes22C$PRHPoints <- round(Bundes22C$PRHPoints, 3)
+Bundes22C$PRAPoints <- round(Bundes22C$PRAPoints, 3)
+```
+
+```{r}
+TPts22C <- Truepoints(Bundes22C)
+xGPts22C <- XGpoints(Bundes22C)[,-1]
+PPts22C <- Projpoints(Bundes22C)[,-1]
+PRPts22C <- Poispoints(Bundes22C)[,-1]
+BundesTable22C <- data.frame(TPts22C, xGPts22C, PPts22C, PRPts22C)
+colnames(BundesTable22C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable22C <-BundesTable22C[order(-BundesTable22C$Points),]
+
+XGDif22C <- abs(BundesTable22C$Points-BundesTable22C$XGPoints)
+ProjDif22C <- abs(BundesTable22C$Points-BundesTable22C$ProjPoints)
+PoisDif22C <- abs(BundesTable22C$Points-BundesTable22C$PoisPoints)
+BLXG22C <- sum(XGDif22C)*(38/26)/14
+BLPJ22C <- sum(ProjDif22C)*(38/26)/14
+BLPS22C <- sum(PoisDif22C)*(38/26)/14
+BLXG22C
+BLPJ22C
+BLPS22C
+BL22C <- (BLXG22C + BLPJ22C + BLPS22C)/3
+BL22C
+```
+
+# 2023
+```{r}
+library(dplyr)
+Bundes23C <-  filter(Bundes23, !(Home %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "Union Berlin")),
+                    !(Away %in% c("Bayern Munich", "RB Leipzig", "Dortmund", "Union Berlin")))
+```
+
+#Poisson Regression 23C
+```{r}
+modelBundes23C <- rbind(data.frame(team=Bundes23C$Home, opponent=Bundes23C$Away, home=1, goals=Bundes23C$HG),
+  data.frame(team=Bundes23C$Away, opponent=Bundes23C$Home, home=0, goals=Bundes23C$AG))
+#View(modelBundes23C)
+pois_Bundes23C <- glm(goals ~ home + team + opponent, family=poisson, data = modelBundes23C)
+```
+
+```{r}
+homet23 <- subset(modelBundes23C, home == 1)
+awayt23 <- subset(modelBundes23C, home == 0)
+pois_prob23 <- matrix(0, nrow = length(homet23$team), ncol = 3)
+colnames(pois_prob23) <- c("PoisHWP", "PoisDP", "PoisAWP")
+x <- predict(pois_Bundes23C, data.frame(team = homet23[1], opponent = homet23[2], home = 1), type="response")
+y <- predict(pois_Bundes23C, data.frame(team = awayt23[1], opponent = awayt23[2], home = 0), type="response")
+ for(homeScore in 0:12){
+   for(awayScore in 0:12){
+     scoreProbability <- dpois(homeScore, x)*dpois(awayScore, y)
+     if(homeScore>awayScore){
+        pois_prob23[,1]<-pois_prob23[,1]+scoreProbability
+       } else if (homeScore==awayScore){
+         pois_prob23[,2]<-pois_prob23[,2]+scoreProbability
+       } else {
+         pois_prob23[,3]<-pois_prob23[,3]+scoreProbability
+        }
+      }
+ }
+```
+
+```{r}
+Bundes23C <- cbind(Bundes23C, pois_prob23)
+
+Bundes23C$PRHPoints <- Bundes23C$PoisHWP*3+Bundes23C$PoisDP*1
+Bundes23C$PRAPoints <- Bundes23C$PoisAWP*3+Bundes23C$PoisDP*1
+
+Bundes23C$PRHPoints <- round(Bundes23C$PRHPoints, 3)
+Bundes23C$PRAPoints <- round(Bundes23C$PRAPoints, 3)
+```
+
+```{r}
+TPts23C <- Truepoints(Bundes23C)
+xGPts23C <- XGpoints(Bundes23C)[,-1]
+PPts23C <- Projpoints(Bundes23C)[,-1]
+PRPts23C <- Poispoints(Bundes23C)[,-1]
+BundesTable23C <- data.frame(TPts23C, xGPts23C, PPts23C, PRPts23C)
+colnames(BundesTable23C) <- c("Team", "Points", "XGPoints", "ProjPoints", "PoisPoints")
+BundesTable23C <-BundesTable23C[order(-BundesTable23C$Points),]
+
+XGDif23C <- abs(BundesTable23C$Points-BundesTable23C$XGPoints)
+ProjDif23C <- abs(BundesTable23C$Points-BundesTable23C$ProjPoints)
+PoisDif23C <- abs(BundesTable23C$Points-BundesTable23C$PoisPoints)
+BLXG23C <- sum(XGDif23C)*(38/26)/14
+BLPJ23C <- sum(ProjDif23C)*(38/26)/14
+BLPS23C <- sum(PoisDif23C)*(38/26)/14
+BLXG23C
+BLPJ23C
+BLPS23C
+BL23C <- (BLXG23C + BLPJ23C + BLPS23C)/3
+BL23C
+```
+
+
+
+```{r}
+print("without relegated")
+BLXGRscore <- (BLXG18R + BLXG19R + BLXG20R + BLXG21R + BLXG22R + BLXG23R)/6
+BLXGRscore
+BLPJRscore <- (BLPJ18R + BLPJ19R + BLPJ20R + BLPJ21R + BLPJ22R + BLPJ23R)/6
+BLPJRscore
+BLPSRscore <- (BLPS18R + BLPS19R + BLPS20R + BLPS21R + BLPS22R + BLPS23R)/6
+BLPSRscore
+BLRscore <- (BL18R + BL19R + BL20R + BL21R + BL22R + BL23R)/6
+BLRscore
+
+print("minus 20 + 21")
+BLRscore2 <- (BL18R + BL19R + BL22R + BL23R)/4
+BLRscore2
+
+print("without Champions")
+BLXGCscore <- (BLXG18C + BLXG19C + BLXG20C + BLXG21C + BLXG22C + BLXG23C)/6
+BLXGCscore
+BLPJCscore <- (BLPJ18C + BLPJ19C + BLPJ20C + BLPJ21C + BLPJ22C + BLPJ23C)/6
+BLPJCscore
+BLPSCscore <- (BLPS18C + BLPS19C + BLPS20C + BLPS21C + BLPS22C + BLPS23C)/6
+BLPSCscore
+BLCscore <- (BL18C + BL19C + BL20C + BL21C + BL22C + BL23C)/6
+BLCscore
+
+print("minus 20 + 21")
+BLCscore2 <- (BL18C + BL19C + BL22C + BL23C)/4
+BLCscore2
+
+print("with relegated")
+BLXGscore
+BLPJscore
+BLPSscore
+BLscore
+print("minus 20 + 21")
+BLscore2
+```
